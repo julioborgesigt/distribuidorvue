@@ -1,5 +1,30 @@
 <template>
   <v-container class="container-estreito">
+
+    <v-alert
+      v-if="unassignedCount > 0 && showUnassignedAlert"
+      type="warning"
+      variant="tonal"
+      closable
+      @click:close="showUnassignedAlert = false"
+      class="mb-6"
+      border="start"
+      prominent
+    >
+      <div class="d-flex justify-space-between align-center flex-wrap ga-2">
+        <div>
+          Atenção: Existem <strong>{{ unassignedCount }}</strong> processo(s) sem atribuição.
+        </div>
+        <v-btn
+          color="warning"
+          variant="flat"
+          @click="filterUnassigned"
+          size="small"
+        >
+          Filtrar Não Atribuídos
+        </v-btn>
+      </div>
+    </v-alert>
     <v-card class="mb-6 pa-3">
       <v-row align="center" justify="space-between">
         
@@ -525,6 +550,9 @@ const options = ref({});    // { page, itemsPerPage, sortBy }
 // Estado dos Gráficos
 const loadingCharts = ref(true);
 const chartItems = ref([]); // Lista COMPLETA (não paginada) para os gráficos
+const unassignedCount = ref(0);
+const showUnassignedAlert = ref(true);
+
 
 // --- 3. ESTADO DOS MODAIS (Sem mudança) ---
 // (Todo o seu código de 'dialogCadastro', 'dialogReset', 'dialogUpload', 'dialogDelete', etc. permanece o mesmo)
@@ -835,6 +863,33 @@ const fetchChartData = async () => {
   }
 };
 
+// NOVA FUNÇÃO: Verifica processos não atribuídos para o alerta
+const checkUnassignedProcesses = async () => {
+  try {
+    // Chama o novo endpoint que criamos
+    const response = await apiClient.get('/admin/stats/unassigned-count');
+    unassignedCount.value = response.data.count;
+    
+    // Se a contagem for maior que 0, garante que o alerta seja exibido
+    // (caso o usuário tenha fechado antes e recarregado os dados)
+    if (unassignedCount.value > 0) {
+      showUnassignedAlert.value = true;
+    }
+  } catch (error) {
+    console.error("Erro ao verificar processos não atribuídos:", error);
+    // É um check de fundo, não precisamos poluir com snackbar de erro
+  }
+};
+
+// Ação para o botão "Filtrar" do novo alerta
+const filterUnassigned = () => {
+  // Define o filtro de usuário para "Não Atribuído" (que tem o valor 'NA')
+  filters.value.userId = ['NA'];
+  // Esconde o alerta
+  showUnassignedAlert.value = false;
+  // O watcher de 'filters' será disparado e recarregará a tabela
+};
+
 // --- 6. OBSERVADORES (WATCHERS) ---
 
 // Observador para a TABELA
@@ -866,6 +921,7 @@ onMounted(() => {
   }
   fetchChartData();
   fetchAllUsers();
+  checkUnassignedProcesses();
 });
 
 // --- 8. FUNÇÕES DE CRUD (Atualizadas para recarregar os dados) ---
@@ -874,6 +930,7 @@ onMounted(() => {
 const reloadAllData = async () => {
   await fetchTableData();
   await fetchChartData();
+  await checkUnassignedProcesses();
 };
 
 const fetchAllUsers = async () => {
