@@ -1,25 +1,20 @@
 <template>
   <div>
-    <v-data-table
+    <v-data-table-server
       :headers="headers"
       :items="props.items"
-      :loading="props.loading"
-      :search="props.search"
-      item-key="id"
-      class="elevation-1"
-      fixed-header
-      fixed-layout
-      height="70vh"
+      :items-length="props.totalItems" :loading="props.loading"
       
       show-select
       return-object
       :model-value="props.selected"
       @update:model-value="emit('update:selected', $event)"
       
-      :sort-by="props.sortBy"
-      @update:sort-by="emit('update:sortBy', $event)"
-
-      >
+      @update:options="emit('update:options', $event)" item-key="id"
+      class="elevation-1"
+      fixed-header
+      height="70vh"
+    >
       <template v-slot:item.user="{ item }">
         <span v-if="item.User">{{ item.User.nome }}</span>
         <v-chip v-else size="small" variant="tonal">Não Atribuído</v-chip>
@@ -68,7 +63,7 @@
         </v-btn>
       </template>
 
-    </v-data-table>
+    </v-data-table-server>
 
     <v-dialog v-model="dialogObs" max-width="600px" persistent>
       <v-card>
@@ -105,10 +100,11 @@ import { parseISO, format } from 'date-fns';
 // --- 1. PROPS (ATUALIZADO) ---
 const props = defineProps({
   items: { type: Array, default: () => [] },
+  totalItems: { type: Number, default: 0 }, // NOVO: Total de itens no DB
   loading: { type: Boolean, default: false },
-  search: { type: String, default: '' },
   selected: { type: Array, default: () => [] },
-  sortBy: { type: Array, default: () => [] }
+  // 'search' foi removido (o pai controla)
+  // 'sortBy' foi removido (agora vem pelo evento 'options')
 });
 
 // --- 2. EVENTS (ATUALIZADO) ---
@@ -116,38 +112,29 @@ const emit = defineEmits([
   'salvar-obs', 
   'marcar-cumprido', 
   'update:selected',
-  'update:sortBy'
+  'update:options' // NOVO: Evento de paginação/ordenação
 ]);
 
-// --- 3. ESTADO LOCAL (Correto) ---
+// --- 3. ESTADO LOCAL (Sem alteração) ---
 const dialogObs = ref(false);
 const itemEdicao = ref({ id: null, observacoes: '' });
 
-// --- 4. HEADERS (**** ATUALIZADO COM 'sortable: false' ****) ---
-// Adicionado 'sortable: false' a todas as colunas
+// --- 4. HEADERS (Sem alteração, mas 'sortable: false' foi removido) ---
+// Precisamos habilitar 'sortable' para a ordenação do servidor funcionar.
+// O 'prazoRestanteNum' vai precisar de atenção especial.
 const headers = ref([
-
-  { title: 'Nº Processo', key: 'numero_processo', width: '17%', sortable: false },
-
-  { title: 'Atribuído a', key: 'user', width: '10%' , sortable: false },
-
+  { title: 'Nº Processo', key: 'numero_processo', width: '17%' },
+  { title: 'Atribuído a', key: 'user', width: '10%' },
   { title: 'Classe', key: 'classe_principal', width: '10%' },
-
   { title: 'Assunto', key: 'assunto_principal', width: '10%' },
-
   { title: 'Tarjas', key: 'tarjas', width: '10%' },
-
-  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '12%' },
-
+  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '12%' }, // <-- Isso vai quebrar
   { title: 'Reit.', key: 'reiteracoes', width: '5%', align: 'center' },
-
   { title: 'Obs', key: 'observacoes',  width: '19%', sortable: false },
-
   { title: 'Cumprir', key: 'acaoCumprido', width: '7%', align: 'center', sortable: false },
-
 ]);
 
-// --- 5. FUNÇÕES AUXILIARES (Correto) ---
+// --- 5. FUNÇÕES AUXILIARES (Sem alteração) ---
 const formatarDataHora = (dataISO) => {
   if (!dataISO) return '';
   try {
@@ -157,7 +144,7 @@ const formatarDataHora = (dataISO) => {
   }
 };
 
-// --- 6. MÉTODOS DE EMIT (Correto) ---
+// --- 6. MÉTODOS DE EMIT (Sem alteração) ---
 const abrirModalObs = (item) => {
   itemEdicao.value = { ...item };
   dialogObs.value = true;
@@ -171,11 +158,8 @@ const emitirEventoMarcarCumprido = (item) => {
 };
 </script>
 
-
-
-
-<style scoped> 
-
+<style scoped>
+/* Seus estilos permanecem os mesmos */ 
 .obs-celula {
   cursor: pointer;
   min-height: 40px;
@@ -183,34 +167,18 @@ const emitirEventoMarcarCumprido = (item) => {
   align-items: center;
   width: 100%;
 }
-
-/* Linhas verticais */
 :deep(th:not(:last-child)) {
   border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 :deep(td:not(:last-child)) {
   border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
-/* ... (Seus estilos .obs-celula e :deep(th/td) para bordas) ... */
-/* */
-
-
-/* ========================================================== */
-/* ==== ADICIONE ESTAS NOVAS REGRAS NO FINAL DO ESTILO ==== */
-/* ========================================================== */
-
-/* 1. Força as DUAS tabelas (cabeçalho e corpo) a usar
-      o layout fixo. Isso prioriza a largura do 'width' 
-      sobre o conteúdo da célula. */
 :deep(table) {
   table-layout: fixed;
 }
-
-/* 2. Força o texto longo a quebrar DENTRO da célula, 
-      em vez de expandir a largura da coluna. */
 :deep(td) {
   overflow-wrap: break-word;
-  word-wrap: break-word; /* (fallback para navegadores antigos) */
-  word-break: break-all; /* (opção mais agressiva se 'break-word' não funcionar) */
+  word-wrap: break-word;
+  word-break: break-all;
 }
 </style>

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 // 1. Cria uma instância do Axios
 
 const apiClient = axios.create({
