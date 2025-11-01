@@ -50,76 +50,65 @@
           <div class="d-flex flex-wrap justify-center justify-md-end" style="gap: 10px;">
             
             <template v-if="user?.admin_super">
-              <v-btn 
-                color="primary" 
-                variant="tonal" 
-                prepend-icon="mdi-account-plus-outline"
-                @click="abrirModalCadastro"
-              >
-                Cadastrar Usuário
+              <v-btn color="primary" variant="tonal" prepend-icon="mdi-account-plus-outline" @click="abrirModalCadastro">
+                <span class="d-none d-sm-inline">Cadastrar Usuário</span>
               </v-btn>
-              <v-btn 
-                color="orange" 
-                variant="tonal" 
-                prepend-icon="mdi-lock-reset"
-                @click="abrirModalReset"
-              >
-                Resetar Senha
+              <v-btn color="orange" variant="tonal" prepend-icon="mdi-lock-reset" @click="abrirModalReset">
+                <span class="d-none d-sm-inline">Resetar Senha</span>
               </v-btn>
-              <v-btn 
-                color="red" 
-                variant="tonal" 
-                prepend-icon="mdi-account-remove-outline"
-                @click="abrirModalDelete"
-              >
-                Apagar Usuário
+              <v-btn color="red" variant="tonal" prepend-icon="mdi-account-remove-outline" @click="abrirModalDelete">
+                <span class="d-none d-sm-inline">Apagar Usuário</span>
               </v-btn>
-            
-              <v-btn 
-                color="teal" 
-                variant="tonal" 
-                prepend-icon="mdi-file-upload-outline"
-                @click="abrirModalUpload"
-              >
-                Importar CSV
+              <v-btn color="teal" variant="tonal" prepend-icon="mdi-file-upload-outline" @click="abrirModalUpload">
+                <span class="d-none d-sm-inline">Importar CSV</span>
               </v-btn>
+              <v-btn @click="handleLogout" prepend-icon="mdi-logout" variant="text">
+                <span class="d-none d-sm-inline">Sair</span>
+              </v-btn>
+
             </template>
            
 
-            <v-btn 
-              @click="handleLogout" 
-              prepend-icon="mdi-logout"
-              variant="text"
-            >
-              Sair
-            </v-btn>
+            
           </div>
         </v-col>
       
       </v-row>
     </v-card>
 
-    <v-card class="mb-6 d-none d-md-block">
-      <v-row dense class="pa-4">
+    <v-expansion-panels class="mb-6" :model-value="mdAndUp ? 0 : undefined">
+      
+      <v-expansion-panel :readonly="mdAndUp">
         
-        <v-col cols="12" md="6"> 
-          <stats-grid 
-          :stats="statsData" 
-          style="max-height: 400px; padding-right: 1%;"
-          />
-        </v-col>       
+        <v-expansion-panel-title :hide-actions="mdAndUp">
+          <v-icon start>mdi-chart-bar</v-icon>
+          Gráficos e Estatísticas
+        </v-expansion-panel-title>
 
+        <v-expansion-panel-text>
+          <v-row dense class="pt-4"> <v-col cols="12" lg="6" > 
+              <stats-grid 
+                :stats="statsData" 
+                style="padding-right: 1%;"
+              />
+            </v-col>       
+
+            <v-col 
+              cols="12" 
+              lg="6" 
+              :class="{ 'border-s pl-4': mdAndUp }"
+            > 
+              <v-card-subtitle>Cumpridos por Usuário (Últimos 30 dias)</v-card-subtitle>
+              <cumpridos-chart 
+                :chart-data="cumpridosChartData" 
+              />
+            </v-col>
+
+          </v-row> 
+        </v-expansion-panel-text>
         
-
-        <v-col cols="12" md="6" class="border-s pl-4"> <v-card-subtitle>Cumpridos por Usuário (Últimos 30 dias)</v-card-subtitle>
-          <cumpridos-chart 
-            :chart-data="cumpridosChartData" 
-            style="max-height: 400px;"
-          />
-        </v-col>
-
-      </v-row> 
-    </v-card>
+      </v-expansion-panel>
+    </v-expansion-panels>
     
     <v-expansion-panels class="mb-6">
        <v-expansion-panel> <v-expansion-panel-title>
@@ -268,31 +257,40 @@
       <v-card-title class="d-flex justify-space-between align-center flex-wrap ga-2">
         <span class="text-h5">Lista de Processos</span>
         <v-spacer></v-spacer>
-        <v-btn
-          color="primary"
-          variant="flat"
-          prepend-icon="mdi-download"
-          @click="downloadPDF(serverItems)" :disabled="serverItems.length === 0" >
-          Baixar Exibidos
-        </v-btn>
-        <v-btn
-          color="blue-grey"
-          variant="flat"
-          prepend-icon="mdi-download-box-outline"
-          @click="downloadPDF(selected)"
-          :disabled="selected.length === 0"
-        >
-          Baixar Selecionados
-        </v-btn>
-        <v-btn
-          color="secondary"
-          variant="flat"
-          prepend-icon="mdi-account-arrow-right"
-          @click="abrirModalBulkAssign"
-          :disabled="selected.length === 0"
-        >
-          Atribuir Seleção
-        </v-btn>
+
+        <div class="d-flex ga-2 flex-wrap justify-end">
+          <v-btn
+            color="primary"
+            variant="flat"
+            prepend-icon="mdi-download"
+            @click="downloadPDF(serverItems)" :disabled="serverItems.length === 0" 
+          >
+            <span class="d-none d-md-inline">Baixar Exibidos</span>
+          </v-btn>
+          
+          <v-btn
+            color="blue-grey"
+            variant="flat"
+            prepend-icon="mdi-download-box-outline"
+            @click="downloadPDF(selected)"
+            :disabled="selected.length === 0"
+          >
+            <span class="d-none d-md-inline">Baixar Selecionados</span>
+          </v-btn>
+
+          <v-btn
+            color="secondary"
+            variant="flat"
+            prepend-icon="mdi-account-arrow-right"
+            @click="abrirModalBulkAssign"
+            :disabled="selected.length === 0"
+          >
+            <span class="d-none d-md-inline">Atribuir Seleção</span>
+          </v-btn>
+        </div>
+      </v-card-title>
+
+      <v-card-text class="pt-2 pb-0">
         <v-text-field
           v-model="search"
           label="Buscar processo..."
@@ -300,9 +298,8 @@
           density="compact"
           prepend-inner-icon="mdi-magnify"
           hide-details
-          style="max-width: 300px"
-        ></v-text-field>
-      </v-card-title>
+          ></v-text-field>
+      </v-card-text>
       
       <tabela-processos
         v-model:selected="selected"
@@ -314,7 +311,9 @@
         @marcar-cumprido="handleMarcarComoCumprido"
       />
     
-    </v-card> <v-dialog v-model="dialogCadastro" max-width="600px" persistent>
+    </v-card> 
+    
+    <v-dialog v-model="dialogCadastro" max-width="600px" persistent>
       <v-card>
         <v-form ref="formCadastroRef" @submit.prevent="handleSalvarCadastro">
           <v-card-title>
@@ -595,6 +594,8 @@ import CumpridosChart from '../components/CumpridosChart.vue';
 import { addDays, differenceInDays, startOfToday, parseISO, format, subDays } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useDisplay } from 'vuetify';
+const { mdAndUp } = useDisplay(); // mdAndUp será 'true' se a tela for >= 960px
 import { useTheme } from 'vuetify'; 
 
 const theme = useTheme();

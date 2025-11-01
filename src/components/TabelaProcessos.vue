@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div style="width: 100%; overflow-x: auto;">
     <v-data-table-server
       :headers="headers"
       :items="props.items"
@@ -142,23 +142,15 @@ const itemEdicao = ref({ id: null, observacoes: '' });
 // Precisamos habilitar 'sortable' para a ordenação do servidor funcionar.
 // O 'prazoRestanteNum' vai precisar de atenção especial.
 const headers = ref([
-  { title: 'Nº Processo', key: 'numero_processo', width: '25%' }, // Ajustado
-  { title: 'Atribuído a', key: 'user', width: '25%' }, // Ajustado
-  
-  // --- Colunas Ocultas em Telas Pequenas ---
-  { title: 'Classe', key: 'classe_principal', width: '12%', class: 'd-none d-md-table-cell' },
-  { title: 'Assunto', key: 'assunto_principal', width: '10%', class: 'd-none d-md-table-cell' },
-  { title: 'Tarjas', key: 'tarjas', width: '10%', class: 'd-none d-md-table-cell' },
-  // ---
-  
-  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '25%' }, // Ajustado
-  
-  // --- Colunas Ocultas em Telas Pequenas ---
-  { title: 'Reit.', key: 'reiteracoes', width: '5%', align: 'center', class: 'd-none d-md-table-cell' },
-  { title: 'Obs', key: 'observacoes',  width: '17%', sortable: false, class: 'd-none d-md-table-cell' },
-  // ---
-  
-  { title: 'Cumprir', key: 'acaoCumprido', width: '15%', align: 'center', sortable: false }, // Ajustado
+  { title: 'Nº Processo', key: 'numero_processo', width: '220px' }, // Exemplo de largura fixa
+  { title: 'Atribuído a', key: 'user', width: '120px' },
+  { title: 'Classe', key: 'classe_principal', width: '140px' },
+  { title: 'Assunto', key: 'assunto_principal', width: '200px' },
+  { title: 'Tarjas', key: 'tarjas', width: '150px' },
+  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '140px' },
+  { title: 'Reit.', key: 'reiteracoes', width: '60px', align: 'center' },
+  { title: 'Obs', key: 'observacoes',  width: '210px', sortable: false },
+  { title: 'Cumprir', key: 'acaoCumprido', width: '80px', align: 'center', sortable: false },
 ]);
 
 // --- 5. FUNÇÕES AUXILIARES (Sem alteração) ---

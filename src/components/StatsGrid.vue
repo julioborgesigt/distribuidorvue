@@ -23,13 +23,11 @@
         <v-col cols="6" sm="4" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
-              :model-value="100"
-              color="primary"
-              :size="100"
-              :width="10"
-            >
-              <strong>{{ stats.total }}</strong>
-            </v-progress-circular>
+            :model-value="100"
+            color="primary"
+            :size="circleSize"  :width="circleWidth" >
+            <strong>{{ stats.total }}</strong>
+          </v-progress-circular>
             <v-card-text class="text-primary font-weight-bold pa-1">
               Total
             </v-card-text>
@@ -39,13 +37,11 @@
         <v-col v-for="user in paginatedUsers" :key="user.nome" cols="6" sm="4" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
-              :model-value="user.percent"
-              color="primary"
-              :size="100"
-              :width="10"
-            >
-              <strong>{{ user.count }}</strong>
-            </v-progress-circular>
+            :model-value="user.percent"
+            color="primary"
+            :size="circleSize"  :width="circleWidth" >
+            <strong>{{ user.count }}</strong>
+          </v-progress-circular>
             <v-card-text class="pa-1">
               {{ user.nome }}<br>
               <span class="text-caption">({{ user.percent.toFixed(0) }}%)</span>
@@ -70,13 +66,11 @@
         <v-col v-for="prazo in stats.byPrazo" :key="prazo.nome" cols="6" sm="4" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
-              :model-value="prazo.percent"
-              color="orange"
-              :size="100"
-              :width="10"
-            >
-              <strong>{{ prazo.count }}</strong>
-            </v-progress-circular>
+            :model-value="prazo.percent"
+            color="orange"
+            :size="circleSize"  :width="circleWidth" >
+            <strong>{{ prazo.count }}</strong>
+          </v-progress-circular>
             <v-card-text class="pa-1">
               {{ prazo.nome }}<br>
               <span class="text-caption">({{ prazo.percent.toFixed(0) }}%)</span>
@@ -86,13 +80,11 @@
         <v-col v-for="assunto in stats.byAssunto" :key="assunto.nome" cols="6" sm="4" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
-              :model-value="assunto.percent"
-              color="blue"
-              :size="100"
-              :width="10"
-            >
-              <strong>{{ assunto.count }}</strong>
-            </v-progress-circular>
+            :model-value="assunto.percent"
+            color="blue"
+            :size="circleSize"  :width="circleWidth" >
+            <strong>{{ assunto.count }}</strong>
+          </v-progress-circular>
             <v-card-text class="pa-1">
               {{ assunto.nome }}<br>
               <span class="text-caption">({{ assunto.percent.toFixed(0) }}%)</span>
@@ -107,6 +99,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useDisplay } from 'vuetify';
 
 // Props (Sem alteração)
 const props = defineProps({
@@ -118,26 +111,16 @@ const props = defineProps({
 });
 
 // --- NOVO ESTADO DE VISÃO ---
-// 'users' ou 'details'
 const currentView = ref('users');
 
-// --- LÓGICA DE PAGINAÇÃO (Corrigida) ---
-
-// Itens por página: 11 usuários + 1 "Total" = 12 itens (Grid 6x2)
+// --- LÓGICA DE PAGINAÇÃO (Sem alteração) ---
 const itemsPerPage = 11; 
-
-// Estado da página atual
 const userPage = ref(1);
-
-// Calcula o total de páginas (só pagina se tiver MAIS de 11 usuários)
 const totalUserPages = computed(() => {
   if (props.stats.byUser.length <= itemsPerPage) return 1;
   return Math.ceil(props.stats.byUser.length / itemsPerPage);
 });
-
-// "Fatia" o array 'stats.byUser' para mostrar apenas os 11 da página atual
 const paginatedUsers = computed(() => {
-  // Se só há uma página, reseta a página para 1 (caso os filtros mudem)
   if (totalUserPages.value === 1) {
     userPage.value = 1;
   }
@@ -145,4 +128,27 @@ const paginatedUsers = computed(() => {
   const end = start + itemsPerPage;
   return props.stats.byUser.slice(start, end);
 });
+
+
+// --- ✅ 2. LÓGICA DE TAMANHO RESPONSIVO ---
+const { name: breakpointName } = useDisplay();
+
+// Define o tamanho do círculo com base no breakpoint
+const circleSize = computed(() => {
+  switch (breakpointName.value) {
+    case 'xs': return 70; // Celulares
+    case 'sm': return 85; // Tablets
+    default: return 100;  // Telas médias (md) ou maiores
+  }
+});
+
+// Define a espessura do círculo com base no breakpoint
+const circleWidth = computed(() => {
+  switch (breakpointName.value) {
+    case 'xs': return 7;
+    case 'sm': return 8;
+    default: return 10;
+  }
+});
+
 </script>
