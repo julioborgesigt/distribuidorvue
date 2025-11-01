@@ -1,6 +1,6 @@
 <template>
   <v-container class="container-estreito">
-
+    
     <v-alert
       v-if="unassignedCount > 0 && showUnassignedAlert"
       type="warning"
@@ -27,8 +27,18 @@
     </v-alert>
     <v-card class="mb-6 pa-3">
       <v-row align="center" justify="space-between">
-        
+         <v-btn
+              :title="theme.global.current.value.dark ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+              icon
+              @click="toggleTheme"
+              class="mr-1 ml-4"
+            >
+              <v-icon>
+                {{ theme.global.current.value.dark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}
+              </v-icon>
+            </v-btn>
         <v-col cols="12" md="auto" class="text-center text-md-left">
+          
           <div class="text-h6">Bem-vindo, {{ user?.nome }}!</div>
           <div class="text-body-2">
             Você está logado como: 
@@ -74,10 +84,12 @@
                 Importar CSV
               </v-btn>
             </template>
+           
+
             <v-btn 
               @click="handleLogout" 
               prepend-icon="mdi-logout"
-              variant="tonal"
+              variant="text"
             >
               Sair
             </v-btn>
@@ -87,7 +99,7 @@
       </v-row>
     </v-card>
 
-    <v-card class="mb-6">
+    <v-card class="mb-6 d-none d-md-block">
       <v-row dense class="pa-4">
         
         <v-col cols="12" md="6"> 
@@ -119,7 +131,6 @@
             <v-col cols="12" md="4">
               <v-autocomplete
                 v-model="filters.classe"
-                :items="uniqueClasses"
                 label="Classe"
                 density="compact"
                 variant="outlined"
@@ -131,7 +142,6 @@
             <v-col cols="12" md="4">
               <v-autocomplete
                 v-model="filters.assunto"
-                :items="uniqueAssuntos"
                 label="Assunto"
                 density="compact"
                 variant="outlined"
@@ -143,7 +153,6 @@
             <v-col cols="12" md="4">
               <v-autocomplete
                 v-model="filters.tarjas"
-                :items="uniqueTarjas"
                 label="Tarjas"
                 density="compact"
                 variant="outlined"
@@ -190,6 +199,64 @@
                 variant="outlined"
                 clearable
               ></v-select>
+            </v-col>
+            <v-col cols="12" md="3">
+              <v-menu
+                v-model="menuInicio"
+                :close-on-content-click="false"
+                location="bottom end"
+                transition="scale-transition"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-text-field
+                    v-model="formattedDataInicio"
+                    label="Data Início (Cumprido)"
+                    density="compact"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-calendar"
+                    readonly
+                    clearable
+                    @click:clear="filters.data_inicio = null"
+                    v-bind="props"
+                  ></v-text-field>
+                </template>
+                <v-date-picker
+                  v-model="filters.data_inicio"
+                  @update:model-value="menuInicio = false"
+                  locale="pt-BR"
+                  hide-header
+                  title="Data Início"
+                ></v-date-picker>
+              </v-menu>
+            </v-col>
+            <v-col cols="12" md="3">
+              <v-menu
+                v-model="menuFim"
+                :close-on-content-click="false"
+                location="bottom end"
+                transition="scale-transition"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-text-field
+                    v-model="formattedDataFim"
+                    label="Data Fim (Cumprido)"
+                    density="compact"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-calendar"
+                    readonly
+                    clearable
+                    @click:clear="filters.data_fim = null"
+                    v-bind="props"
+                  ></v-text-field>
+                </template>
+                <v-date-picker
+                  v-model="filters.data_fim"
+                  @update:model-value="menuFim = false"
+                  locale="pt-BR"
+                  hide-header
+                  title="Data Fim"
+                ></v-date-picker>
+              </v-menu>
             </v-col>
           </v-row>
         </v-expansion-panel-text>
@@ -420,8 +487,8 @@
                 <v-col cols="12">
                   <v-autocomplete
                     v-model="matriculaParaDelete"
-                    :items="allUsersOptions"
                     item-title="title"
+                    :items="allUsersOptions"
                     item-value="value"
                     label="Selecionar Usuário para Apagar"
                     :rules="[requiredRule]"
@@ -466,8 +533,8 @@
                   </div>
                   <v-autocomplete
                     v-model="matriculaParaAtribuir"
-                    :items="allUsersOptions"
                     item-title="title"
+                    :items="allUsersOptions"
                     item-value="value"
                     label="Atribuir ao usuário:"
                     :rules="[requiredRule]"
@@ -515,6 +582,9 @@
 </template>
 
 <script setup>
+// =================================================================
+// 1. IMPORTS
+// =================================================================
 import { ref, onMounted, computed, watch } from 'vue'; 
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
@@ -525,10 +595,20 @@ import CumpridosChart from '../components/CumpridosChart.vue';
 import { addDays, differenceInDays, startOfToday, parseISO, format, subDays } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTheme } from 'vuetify'; 
 
-// --- 1. ESTADO DE AUTENTICAÇÃO E FILTROS (Sem mudança) ---
+const theme = useTheme();
+const toggleTheme = () => {
+  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark';
+};
+
+
+// =================================================================
+// 2. ESTADO PRINCIPAL (AUTH & FILTROS)
+// =================================================================
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
+
 const search = ref('');
 const filters = ref({
   classe: [],
@@ -536,106 +616,178 @@ const filters = ref({
   tarjas: [],
   userId: [],
   prazo: null,
-  cumprido: false, // Default agora é null (Todos)
+  cumprido: false, // Default é "Não Cumprido"
+  data_inicio: null,
+  data_fim: null,
 });
 const selected = ref([]);
 
-// --- 2. NOVO ESTADO PARA PAGINAÇÃO DO SERVIDOR ---
-// Estado da Tabela
+// =================================================================
+// 3. ESTADO DA TABELA E GRÁFICOS (PAGINAÇÃO DO SERVIDOR)
+// =================================================================
 const loadingTable = ref(true);
 const serverItems = ref([]); // Itens da página atual
 const totalItems = ref(0);  // Total de itens no DB
 const options = ref({});    // { page, itemsPerPage, sortBy }
 
-// Estado dos Gráficos
 const loadingCharts = ref(true);
-const chartItems = ref([]); // Lista COMPLETA (não paginada) para os gráficos
+const statsResponse = ref(null); // Resposta da API de estatísticas
 const unassignedCount = ref(0);
 const showUnassignedAlert = ref(true);
+const allUsersList = ref([]); // Lista de todos os usuários para modais/filtros
 
+// =================================================================
+// 4. ESTADO DOS MODAIS E SNACKBAR
+// =================================================================
+const snackbar = ref(false);
+const snackbarText = ref('');
+const snackbarColor = ref('success');
+const menuInicio = ref(false);
+const menuFim = ref(false);
 
-// --- 3. ESTADO DOS MODAIS (Sem mudança) ---
-// (Todo o seu código de 'dialogCadastro', 'dialogReset', 'dialogUpload', 'dialogDelete', etc. permanece o mesmo)
+// Modal: Cadastrar Usuário
 const dialogCadastro = ref(false);
 const formCadastroRef = ref(null);
 const loadingCadastro = ref(false);
 const novoUsuario = ref({ matricula: '', nome: '', senha: '', tipoCadastro: 'usuario_padrao' });
-const tipoCadastroOptions = ref([
-  { title: 'Admin Padrão', value: 'admin_padrao' },
-  { title: 'Admin Super', value: 'admin_super' },
-]);
-const snackbar = ref(false);
-const snackbarText = ref('');
-const snackbarColor = ref('success');
+
+// Modal: Resetar Senha
 const dialogReset = ref(false);
 const formResetRef = ref(null);
 const loadingReset = ref(false);
 const matriculaParaReset = ref(null);
-const allUsersList = ref([]);
+
+// Modal: Apagar Usuário
 const dialogDelete = ref(false);
 const formDeleteRef = ref(null);
 const loadingDelete = ref(false);
 const matriculaParaDelete = ref(null);
+
+// Modal: Upload CSV
 const dialogUpload = ref(false);
 const loadingUpload = ref(false);
 const csvFile = ref(null);
 const uploadError = ref(null);
+
+// Modal: Atribuir em Massa
 const dialogBulkAssign = ref(false);
 const formBulkAssignRef = ref(null);
 const loadingBulkAssign = ref(false);
 const matriculaParaAtribuir = ref(null);
+
+// =================================================================
+// 5. REGRAS DE VALIDAÇÃO
+// =================================================================
 const requiredRule = v => !!v || 'Campo obrigatório';
 const senhaRule = v => (v && v.length >= 8) || 'Senha deve ter no mínimo 8 caracteres';
+
+// =================================================================
+// 6. PROPRIEDADES COMPUTADAS (COMPUTED)
+// =================================================================
+
+// Opções para os selects de filtro/modais
+const tipoCadastroOptions = ref([
+  { title: 'Admin Padrão', value: 'admin_padrao' },
+  { title: 'Admin Super', value: 'admin_super' },
+]);
+
+const statusCumpridoOptions = [
+  { title: 'Todos', value: null },
+  { title: 'Cumprido', value: true },
+  { title: 'Não Cumprido', value: false }
+];
+
+const prazoOptions = [
+  { title: 'Vencido', value: 'vencido' },
+  { title: 'A Vencer', value: 'a_vencer' }
+];
+
+// Gera a lista de usuários para os modais de admin
 const allUsersOptions = computed(() => {
   return allUsersList.value.map(user => ({
     title: `${user.nome} (${user.matricula})`,
-    value: user.matricula
+    value: user.matricula // Modais de admin usam 'matricula'
   }));
 });
 
-// NOVA FUNÇÃO: Constrói os parâmetros de query para os GRÁFICOS
-// (É uma cópia do buildQueryParams, mas IGNORA o filtro 'cumprido')
-const buildChartQueryParams = () => {
-  const params = new URLSearchParams();
-  
-  // Filtros (SEM o 'cumprido')
-  if (search.value) {
-    params.append('search', search.value);
+// Gera a lista de usuários para o FILTRO (incluindo "Não Atribuído")
+const uniqueUsers = computed(() => {
+  const naoAtribuidoOption = { title: 'Não Atribuído', value: 'NA' };
+  const userOptions = allUsersList.value 
+    ? allUsersList.value.map(user => ({
+        title: user.nome,
+        value: user.id // Filtro principal usa 'id'
+      }))
+    : [];
+  return [naoAtribuidoOption, ...userOptions];
+});
+
+// Computed para o StatsGrid (baseado na resposta da API)
+const statsData = computed(() => {
+  if (!statsResponse.value) {
+    return { total: 0, byUser: [], byPrazo: [], byAssunto: [] };
   }
-  // O filtro 'cumprido' é IGNORADO AQUI
-  if (filters.value.prazo) {
-    params.append('prazo', filters.value.prazo);
-  }
+  const { totalPendentes, byUser, byPrazo, byAssunto } = statsResponse.value;
   
-  // Filtros de Array
-  filters.value.classe.forEach(v => params.append('classe', v));
-  filters.value.assunto.forEach(v => params.append('assunto', v));
-  filters.value.tarjas.forEach(v => params.append('tarjas', v));
-
-  // --- LÓGICA DE FILTRO DE USUÁRIO ATUALIZADA ---
-  const userIdFilterValues = filters.value.userId || [];
+  const byUserFormatted = byUser.map(user => ({
+    ...user,
+    percent: totalPendentes > 0 ? (user.count / totalPendentes) * 100 : 0
+  }));
   
-  // 1. Separa os IDs reais (ex: 1, 2, 3) do nosso sinalizador 'NA'
-  const realUserIds = userIdFilterValues.filter(id => id !== 'NA');
-  const includesNaoAtribuido = userIdFilterValues.includes('NA');
+  const byPrazoFormatted = [
+    { nome: 'Vencidos', count: byPrazo.vencidos, percent: totalPendentes > 0 ? (byPrazo.vencidos / totalPendentes) * 100 : 0 },
+    { nome: 'P < 10d', count: byPrazo.p10d, percent: totalPendentes > 0 ? (byPrazo.p10d / totalPendentes) * 100 : 0 },
+    { nome: 'P < 30d', count: byPrazo.p30d, percent: totalPendentes > 0 ? (byPrazo.p30d / totalPendentes) * 100 : 0 }
+  ];
+  
+  const byAssuntoFormatted = byAssunto.map(assunto => ({
+    ...assunto,
+    percent: totalPendentes > 0 ? (assunto.count / totalPendentes) * 100 : 0
+  }));
 
-  // 2. Anexa os IDs reais à query
-  realUserIds.forEach(id => params.append('userId', id));
+  return { 
+    total: totalPendentes, 
+    byUser: byUserFormatted, 
+    byPrazo: byPrazoFormatted, 
+    byAssunto: byAssuntoFormatted 
+  };
+});
 
-  // 3. Se 'NA' foi selecionado, anexa um sinalizador separado
-  if (includesNaoAtribuido) {
-    params.append('includeNA', 'true');
+// Computed para o CumpridosChart (baseado na resposta da API)
+const cumpridosChartData = computed(() => {
+  if (!statsResponse.value) {
+    return { labels: [], datasets: [] };
   }
-  // --- FIM DA LÓGICA ATUALIZADA ---
+  const sortedUsers = statsResponse.value.cumpridos30d;
+  const labels = sortedUsers.map(entry => entry.nome);
+  const data = sortedUsers.map(entry => entry.count);
+  
+  return {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Processos Cumpridos por Usuário (Últimos 30d)',
+        backgroundColor: '#4CAF50',
+        data: data
+      }
+    ]
+  };
+});
 
-  return params;
-};
+// Formata as datas para exibição nos campos de texto
+const formattedDataInicio = computed(() => {
+  return filters.value.data_inicio ? format(filters.value.data_inicio, 'dd/MM/yyyy') : '';
+});
+const formattedDataFim = computed(() => {
+  return filters.value.data_fim ? format(filters.value.data_fim, 'dd/MM/yyyy') : '';
+});
 
 
+// =================================================================
+// 7. FUNÇÕES HELPERS (Cálculo de Prazo, Construtores de Query)
+// =================================================================
 
-// --- 4. CÁLCULOS E COMPUTAÇÕES (Refatorados) ---
-
-// Funções puras de cálculo (movidas para o topo)
+// --- Helpers de Cálculo de Prazo (Usados pela Tabela) ---
 const parsePrazoDias = (prazoString) => {
   if (!prazoString) return 0;
   const dias = parseInt(prazoString, 10);
@@ -666,158 +818,57 @@ const getCorPrazo = (dias) => {
   return 'green';
 };
 
-// 'processedChartItems' substitui 'chartFilteredProcesses'
-// Ele agora é baseado em 'chartItems' (que vem da API)
-const processedChartItems = computed(() => {
-  return chartItems.value.map(proc => {
-    const prazoNum = getPrazoRestanteNum(proc);
-    return {
-      ...proc,
-      prazoRestanteNum: prazoNum,
-      prazoRestanteStr: formatarPrazo(prazoNum),
-      prazoRestanteColor: getCorPrazo(prazoNum)
-    };
-  });
-});
-
-// 'cumpridos30d' agora se baseia em 'processedChartItems'
-const cumpridos30d = computed(() => {
-  const dataLimite = subDays(startOfToday(), 30);
-  return processedChartItems.value.filter(p => {
-    if (!p.cumprido || !p.cumpridoDate) return false;
-    return parseISO(p.cumpridoDate) >= dataLimite;
-  });
-});
-
-// 'pendentes' agora se baseia em 'processedChartItems'
-const pendentes = computed(() => {
-  return processedChartItems.value.filter(p => !p.cumprido);
-});
-
-// 'statsData' e 'cumpridosChartData' não mudam, pois dependem de 'pendentes' e 'cumpridos30d'
-const statsData = computed(() => {
-  const list = pendentes.value; 
-  const total = list.length;
-  if (total === 0) return { total: 0, byUser: [], byPrazo: [], byAssunto: [] };
-
-  const userCounts = {};
-  list.forEach(p => {
-    const nome = p.User?.nome || 'N.A.';
-    userCounts[nome] = (userCounts[nome] || 0) + 1;
-  });
-  const byUser = Object.entries(userCounts)
-    .map(([nome, count]) => ({
-      nome,
-      count,
-      percent: (count / total) * 100
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 11);
-
-  const vencidos = list.filter(p => p.prazoRestanteNum < 0).length;
-  const p10d = list.filter(p => p.prazoRestanteNum >= 0 && p.prazoRestanteNum <= 10).length;
-  const p30d = list.filter(p => p.prazoRestanteNum > 10 && p.prazoRestanteNum <= 30).length;
-  
-  const byPrazo = [
-    { nome: 'Vencidos', count: vencidos, percent: (vencidos / total) * 100 },
-    { nome: 'P < 10d', count: p10d, percent: (p10d / total) * 100 },
-    { nome: 'P < 30d', count: p30d, percent: (p30d / total) * 100 }
-  ];
-  
-  const assuntosChave = ['Homicídio', 'Roubo', 'Furto', 'Estelionato', 'Tráfico'];
-  const byAssunto = assuntosChave.map(assunto => {
-    const count = list.filter(p => p.assunto_principal?.includes(assunto)).length;
-    return {
-      nome: assunto,
-      count: count,
-      percent: (count / total) * 100
-    };
-  });
-
-  return { total, byUser, byPrazo, byAssunto };
-});
-
-const cumpridosChartData = computed(() => {
-  const userCounts = new Map();
-  cumpridos30d.value.forEach(processo => {
-    const userName = processo.User?.nome || 'Não Atribuído';
-    const currentCount = userCounts.get(userName) || 0;
-    userCounts.set(userName, currentCount + 1);
-  });
-  const sortedUsers = Array.from(userCounts.entries())
-                           .sort((a, b) => b[1] - a[1]);
-  const labels = sortedUsers.map(entry => entry[0]);
-  const data = sortedUsers.map(entry => entry[1]);
-  return {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Processos Cumpridos por Usuário (Últimos 30d)',
-        backgroundColor: '#4CAF50',
-        data: data
-      }
-    ]
-  };
-});
-
-
-// --- 5. LÓGICA DE BUSCA DE DADOS (TOTALMENTE NOVA) ---
-
-// Constrói os parâmetros de query para a API
-const buildQueryParams = () => {
+// --- Helpers de Query Params ---
+const buildChartQueryParams = () => {
   const params = new URLSearchParams();
+  if (search.value) params.append('search', search.value);
+  if (filters.value.prazo) params.append('prazo', filters.value.prazo);
+
+  // ✅ INÍCIO DO NOVO BLOCO DE DATA
+  // Formata a data para 'yyyy-MM-dd' antes de enviar
+  if (filters.value.data_inicio) {
+    params.append('dataInicio', format(filters.value.data_inicio, 'yyyy-MM-dd'));
+  }
+  if (filters.value.data_fim) {
+    params.append('dataFim', format(filters.value.data_fim, 'yyyy-MM-dd'));
+  }
+  // ✅ FIM DO NOVO BLOCO
   
-  // Filtros
-  if (search.value) {
-    params.append('search', search.value);
-  }
-  if (filters.value.cumprido !== null) {
-    params.append('cumprido', filters.value.cumprido);
-  }
-  if (filters.value.prazo) {
-    params.append('prazo', filters.value.prazo);
-  }
-  
-  // Filtros de Array
   filters.value.classe.forEach(v => params.append('classe', v));
   filters.value.assunto.forEach(v => params.append('assunto', v));
   filters.value.tarjas.forEach(v => params.append('tarjas', v));
 
-  // --- LÓGICA DE FILTRO DE USUÁRIO ATUALIZADA ---
   const userIdFilterValues = filters.value.userId || [];
-  
-  // 1. Separa os IDs reais (ex: 1, 2, 3) do nosso sinalizador 'NA'
   const realUserIds = userIdFilterValues.filter(id => id !== 'NA');
   const includesNaoAtribuido = userIdFilterValues.includes('NA');
-
-  // 2. Anexa os IDs reais à query
   realUserIds.forEach(id => params.append('userId', id));
-
-  // 3. Se 'NA' foi selecionado, anexa um sinalizador separado
-  if (includesNaoAtribuido) {
-    params.append('includeNA', 'true');
-  }
-  // --- FIM DA LÓGICA ATUALIZADA ---
+  if (includesNaoAtribuido) params.append('includeNA', 'true');
 
   return params;
 };
 
-// NOVA FUNÇÃO: Busca dados paginados para a TABELA
+const buildQueryParams = () => {
+    const params = buildChartQueryParams(); 
+    if (filters.value.cumprido !== null) {
+      params.append('cumprido', filters.value.cumprido);
+    }
+    return params;
+  };
+
+// =================================================================
+// 8. FUNÇÕES API (Chamadas ao Backend)
+// =================================================================
+
+// Busca dados paginados para a TABELA
 const fetchTableData = async () => {
   loadingTable.value = true;
-  
-  // Começa com os filtros
   const params = buildQueryParams();
-  
-  // Adiciona paginação e ordenação
   params.append('page', options.value.page || 1);
   params.append('itemsPerPage', options.value.itemsPerPage || 10);
   params.append('sortBy', JSON.stringify(options.value.sortBy || []));
 
   try {
     const response = await apiClient.get('/admin/processes', { params });
-    
-    // ATENÇÃO: Precisamos calcular os campos de prazo AQUI
     serverItems.value = response.data.items.map(proc => {
       const prazoNum = getPrazoRestanteNum(proc);
       return {
@@ -828,7 +879,6 @@ const fetchTableData = async () => {
       };
     });
     totalItems.value = response.data.totalItems;
-    
   } catch (error) {
     console.error('Erro ao buscar dados da tabela:', error);
     snackbarText.value = 'Erro ao carregar processos da tabela.';
@@ -839,20 +889,13 @@ const fetchTableData = async () => {
   }
 };
 
-// NOVA FUNÇÃO: Busca TODOS os dados (não paginados) para os GRÁFICOS
+// Busca dados de estatísticas para os GRÁFICOS
 const fetchChartData = async () => {
   loadingCharts.value = true;
-
-  // Começa com os filtros
   const params = buildChartQueryParams();
-  
-  // Adiciona o flag para buscar TUDO
-  params.append('itemsPerPage', -1); // O backend entende -1 como "todos"
-
   try {
-    const response = await apiClient.get('/admin/processes', { params });
-    chartItems.value = response.data.items; // Atualiza os dados dos gráficos
-    
+    const response = await apiClient.get('/admin/stats/dashboard', { params });
+    statsResponse.value = response.data;
   } catch (error) {
     console.error('Erro ao buscar dados dos gráficos:', error);
     snackbarText.value = 'Erro ao carregar dados dos gráficos.';
@@ -863,76 +906,20 @@ const fetchChartData = async () => {
   }
 };
 
-// NOVA FUNÇÃO: Verifica processos não atribuídos para o alerta
+// Busca contagem de não atribuídos para o ALERTA
 const checkUnassignedProcesses = async () => {
   try {
-    // Chama o novo endpoint que criamos
     const response = await apiClient.get('/admin/stats/unassigned-count');
     unassignedCount.value = response.data.count;
-    
-    // Se a contagem for maior que 0, garante que o alerta seja exibido
-    // (caso o usuário tenha fechado antes e recarregado os dados)
     if (unassignedCount.value > 0) {
       showUnassignedAlert.value = true;
     }
   } catch (error) {
     console.error("Erro ao verificar processos não atribuídos:", error);
-    // É um check de fundo, não precisamos poluir com snackbar de erro
   }
 };
 
-// Ação para o botão "Filtrar" do novo alerta
-const filterUnassigned = () => {
-  // Define o filtro de usuário para "Não Atribuído" (que tem o valor 'NA')
-  filters.value.userId = ['NA'];
-  // Esconde o alerta
-  showUnassignedAlert.value = false;
-  // O watcher de 'filters' será disparado e recarregará a tabela
-};
-
-// --- 6. OBSERVADORES (WATCHERS) ---
-
-// Observador para a TABELA
-// Dispara quando 'options' (página, itensPorPagina, sortBy) muda
-watch(options, fetchTableData, { deep: true });
-
-// Observador para os FILTROS
-// Dispara quando 'filters' ou 'search' mudam
-watch(
-  [filters, search],
-  () => {
-    // Quando um filtro muda, força a tabela a voltar para a página 1
-    // (O v-data-table-server faz isso automaticamente se o 'items-length' mudar,
-    // mas vamos garantir que as buscas sejam chamadas)
-    fetchTableData();
-    fetchChartData();
-  },
-  { deep: true }
-);
-
-// --- 7. MONTAGEM INICIAL ---
-
-onMounted(() => {
-  // A carga inicial da tabela e gráficos é disparada pelos watchers
-  // (se 'options' tiver um valor inicial)
-  // Mas vamos garantir que 'fetchTableData' seja chamado se 'options' estiver vazio
-  if (Object.keys(options.value).length === 0) {
-    fetchTableData();
-  }
-  fetchChartData();
-  fetchAllUsers();
-  checkUnassignedProcesses();
-});
-
-// --- 8. FUNÇÕES DE CRUD (Atualizadas para recarregar os dados) ---
-
-// Recarrega todos os dados do servidor
-const reloadAllData = async () => {
-  await fetchTableData();
-  await fetchChartData();
-  await checkUnassignedProcesses();
-};
-
+// Busca a lista de todos os usuários para os modais/filtros
 const fetchAllUsers = async () => {
   try {
     const response = await apiClient.get('/admin/users');
@@ -945,48 +932,126 @@ const fetchAllUsers = async () => {
   }
 };
 
-// Salvar Observações
+// Recarrega todos os dados da página
+const reloadAllData = async () => {
+  await fetchTableData();
+  await fetchChartData();
+  await checkUnassignedProcesses();
+};
+
+// =================================================================
+// 9. HANDLERS DE EVENTOS (Tabela, UI, Logout)
+// =================================================================
+
+// --- Handlers da Tabela ---
 const handleSalvarObservacoes = async (itemEditado) => {
   try {
-    const id = itemEditado.id;
-    const obs = itemEditado.observacoes;
-    await apiClient.put(`/admin/processes/${id}/observacoes`, { observacoes: obs });
-    
-    // EM VEZ DE ATUALIZAR LOCALMENTE, RECARREGA OS DADOS
-    await reloadAllData();
-
+    const { id, observacoes } = itemEditado;
+    await apiClient.put(`/admin/processes/${id}/observacoes`, { observacoes });
+    await reloadAllData(); // Recarrega para refletir mudança
   } catch (error) {
     console.error("Erro ao salvar observação:", error);
   }
 };
 
-// Marcar/Desmarcar como Cumprido
 const handleMarcarComoCumprido = async (item) => {
   const acao = item.cumprido ? 'desfazer-cumprir' : 'cumprir';
   const confirmar = confirm(`Deseja realmente ${item.cumprido ? 'DESMARCAR' : 'MARCAR'} o processo ${item.numero_processo} como cumprido?`);
-  
   if (!confirmar) return;
 
   try {
     await apiClient.patch(`/admin/processes/${item.id}/${acao}`);
-    
-    // EM VEZ DE ATUALIZAR LOCALMENTE, RECARREGA OS DADOS
-    await reloadAllData();
-
+    await reloadAllData(); // Recarrega para refletir mudança
   } catch (error) {
     console.error(`Erro ao ${acao} processo:`, error);
   }
 };
 
-// Ação de Logout (do passo anterior)
+// --- Handlers da UI ---
+const filterUnassigned = () => {
+  filters.value.userId = ['NA'];
+  showUnassignedAlert.value = false;
+};
+
 const handleLogout = () => {
   authStore.logout();
 };
 
-// --- Funções de Modais (Atualizadas para recarregar) ---
+// --- Handlers de PDF ---
+const downloadPDF = (dataToExport) => {
+  let processesToExport;
+  if (dataToExport === selected.value) {
+    processesToExport = [...dataToExport];
+  } else {
+    processesToExport = [...serverItems.value];
+  }
 
-// CADASTRO
-const abrirModalCadastro = () => { /* ... (código idêntico) ... */ 
+  const sortState = options.value.sortBy || [];
+  if (sortState.length > 0) {
+    processesToExport = sortProcesses(processesToExport, sortState);
+  }
+  
+  if (processesToExport.length === 0) {
+    alert('Nenhum item para exportar.');
+    return;
+  }
+  
+  const doc = new jsPDF('l', 'mm', 'a4');
+  // ... (Sua lógica de PDF) ...
+  const columns = [
+    { header: 'Nº Processo', dataKey: 'numero_processo' },
+    { header: 'Atribuído a', dataKey: 'user' },
+    { header: 'Classe', dataKey: 'classe_principal' },
+    { header: 'Assunto', dataKey: 'assunto_principal' },
+    { header: 'Tarjas', dataKey: 'tarjas' },
+    { header: 'Prazo', dataKey: 'prazoRestanteStr' },
+    { header: 'Reiterações', dataKey: 'reiteracoes' },
+    { header: 'Obs', dataKey: 'observacoes' }
+  ];
+  const rows = processesToExport.map(proc => ({
+    numero_processo: proc.numero_processo || '',
+    user: proc.User?.nome || 'N.A.',
+    classe_principal: proc.classe_principal || '',
+    assunto_principal: proc.assunto_principal || '',
+    tarjas: proc.tarjas || '',
+    prazoRestanteStr: proc.prazoRestanteStr || 'N/A',
+    reiteracoes: proc.reiteracoes || 0,
+    observacoes: proc.observacoes || ''
+  }));
+  autoTable(doc, { columns, body: rows, startY: 55 });
+  doc.save('processos.pdf');
+};
+
+const getValue = (obj, path) => {
+  if (path === 'user') return obj.User?.nome;
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+};
+
+const sortProcesses = (processList, sortState) => {
+  if (!sortState || sortState.length === 0) return processList;
+  const { key, order } = sortState[0];
+  if (!key) return processList;
+  return [...processList].sort((a, b) => {
+    let valA = getValue(a, key);
+    let valB = getValue(b, key);
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+    if (typeof valA === 'string') {
+      valA = valA.toLowerCase();
+      valB = valB.toLowerCase();
+    }
+    if (valA < valB) return order === 'asc' ? -1 : 1;
+    if (valA > valB) return order === 'asc' ? 1 : -1;
+    return 0;
+  });
+};
+
+// =================================================================
+// 10. FUNÇÕES DOS MODAIS (Admin)
+// =================================================================
+
+// --- Modal Cadastrar ---
+const abrirModalCadastro = () => {
   novoUsuario.value = { matricula: '', nome: '', senha: '', tipoCadastro: 'usuario_padrao' };
   formCadastroRef.value?.resetValidation();
   dialogCadastro.value = true;
@@ -1002,13 +1067,9 @@ const handleSalvarCadastro = async () => {
     snackbarColor.value = 'success';
     snackbar.value = true;
     fecharModalCadastro();
-    await fetchAllUsers(); // <-- Ação específica
+    await fetchAllUsers(); // Atualiza a lista de usuários
   } catch (error) {
-    if (error.response && error.response.status === 409) {
-      snackbarText.value = 'Erro: Matrícula já cadastrada.';
-    } else {
-      snackbarText.value = 'Erro ao salvar usuário. Tente novamente.';
-    }
+    snackbarText.value = error.response?.data?.error || 'Erro ao salvar usuário.';
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -1016,14 +1077,14 @@ const handleSalvarCadastro = async () => {
   }
 };
 
-// RESET
-const abrirModalReset = () => { /* ... (código idêntico) ... */ 
+// --- Modal Resetar Senha ---
+const abrirModalReset = () => {
   matriculaParaReset.value = null;
   formResetRef.value?.resetValidation();
   dialogReset.value = true;
 };
 const fecharModalReset = () => { dialogReset.value = false; };
-const handleResetarSenha = async () => { /* ... (código idêntico) ... */ 
+const handleResetarSenha = async () => {
   const { valid } = await formResetRef.value.validate();
   if (!valid) return;
   loadingReset.value = true;
@@ -1034,11 +1095,7 @@ const handleResetarSenha = async () => { /* ... (código idêntico) ... */
     snackbar.value = true;
     fecharModalReset();
   } catch (error) {
-    if (error.response && error.response.status === 404) {
-      snackbarText.value = 'Erro: Usuário não encontrado com esta matrícula.';
-    } else {
-      snackbarText.value = 'Erro ao resetar senha. Tente novamente.';
-    }
+    snackbarText.value = error.response?.data || 'Erro ao resetar senha.';
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -1046,8 +1103,8 @@ const handleResetarSenha = async () => { /* ... (código idêntico) ... */
   }
 };
 
-// DELETE USER
-const abrirModalDelete = () => { /* ... (código idêntico) ... */ 
+// --- Modal Apagar Usuário ---
+const abrirModalDelete = () => {
   matriculaParaDelete.value = null;
   formDeleteRef.value?.resetValidation();
   dialogDelete.value = true;
@@ -1059,15 +1116,18 @@ const handleDeleteUser = async () => {
   loadingDelete.value = true;
   try {
     await apiClient.post('/admin/delete-matricula', { matricula: matriculaParaDelete.value });
+    
     snackbarText.value = 'Usuário apagado com sucesso!';
     snackbarColor.value = 'success';
     snackbar.value = true;
     fecharModalDelete();
-    await fetchAllUsers(); // <-- Ação específica
-    await reloadAllData(); // <-- Recarrega dados (processos podiam ser dele)
+    await fetchAllUsers(); // Atualiza a lista de usuários
+    await reloadAllData(); // Recarrega processos (podem ter sido desatribuídos)
+
   } catch (error) {
-    const msg = error.response?.data || 'Erro ao apagar usuário. Tente novamente.';
-    snackbarText.value = `Erro: ${msg}`;
+    // ✅ CORREÇÃO: Lê a propriedade 'error' da resposta JSON do backend
+    snackbarText.value = error.response?.data?.error || 'Erro ao apagar usuário.';
+    
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -1075,14 +1135,14 @@ const handleDeleteUser = async () => {
   }
 };
 
-// UPLOAD CSV
-const abrirModalUpload = () => { /* ... (código idêntico) ... */ 
+// --- Modal Upload CSV ---
+const abrirModalUpload = () => {
   csvFile.value = null;
   uploadError.value = null;
   dialogUpload.value = true;
 };
 const fecharModalUpload = () => { dialogUpload.value = false; };
-const onFileChange = (event) => { /* ... (código idêntico) ... */ 
+const onFileChange = (event) => {
   const files = event.target.files;
   if (files && files.length > 0) {
     if (files[0].type === 'text/csv' || files[0].name.endsWith('.csv')) {
@@ -1095,7 +1155,7 @@ const onFileChange = (event) => { /* ... (código idêntico) ... */
   }
 };
 const handleUploadCSV = async () => {
-  if (!csvFile.value) { /* ... (código idêntico) ... */ 
+  if (!csvFile.value) {
     uploadError.value = "Nenhum arquivo selecionado.";
     return;
   }
@@ -1107,21 +1167,19 @@ const handleUploadCSV = async () => {
     const response = await apiClient.post('/admin/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    loadingUpload.value = false;
     fecharModalUpload();
     snackbarText.value = response.data || 'CSV importado com sucesso!';
     snackbarColor.value = 'success';
     snackbar.value = true;
-    await reloadAllData(); // <-- RECARREGA TUDO
+    await reloadAllData(); // Recarrega tudo
   } catch (error) {
     loadingUpload.value = false;
-    const msg = error.response?.data?.error || error.response?.data || 'Erro ao importar CSV.';
-    uploadError.value = msg;
+    uploadError.value = error.response?.data?.error || 'Erro ao importar CSV.';
   }
 };
 
-// BULK ASSIGN
-const abrirModalBulkAssign = () => { /* ... (código idêntico) ... */ 
+// --- Modal Atribuir em Massa ---
+const abrirModalBulkAssign = () => {
   if (selected.value.length === 0) {
     snackbarText.value = 'Nenhum processo selecionado.';
     snackbarColor.value = 'warning';
@@ -1148,10 +1206,9 @@ const handleBulkAssign = async () => {
     snackbar.value = true;
     fecharModalBulkAssign();
     selected.value = [];
-    await reloadAllData(); // <-- RECARREGA TUDO
+    await reloadAllData(); // Recarrega tudo
   } catch (error) {
-    const msg = error.response?.data || 'Erro ao atribuir processos.';
-    snackbarText.value = `Erro: ${msg}`;
+    snackbarText.value = error.response?.data || 'Erro ao atribuir processos.';
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -1159,141 +1216,40 @@ const handleBulkAssign = async () => {
   }
 };
 
-// --- 9. OPÇÕES PARA OS FILTROS (Sem mudança) ---
-// (Todo o seu código 'getUniqueValues', 'uniqueClasses', 'statusCumpridoOptions', etc. permanece o mesmo)
-const getUniqueValues = (key) => {
-  return computed(() => {
-    // Agora se baseia em 'chartItems'
-    if (!chartItems.value) return [];
-    const values = new Set(chartItems.value.map(p => p[key]).filter(Boolean));
-    return [...values];
-  });
-};
-const uniqueClasses = getUniqueValues('classe_principal');
-const uniqueAssuntos = getUniqueValues('assunto_principal');
-const uniqueTarjas = getUniqueValues('tarjas');
-const uniqueUsers = computed(() => {
-  // 1. Cria a nossa opção especial "Não Atribuído"
-  // Usamos 'NA' como um valor especial que o backend vai entender
-  const naoAtribuidoOption = { title: 'Não Atribuído', value: 'NA' };
+// =================================================================
+// 11. OBSERVADORES (WATCHERS)
+// =================================================================
 
-  // 2. Mapeia os usuários reais
-  const userOptions = allUsersList.value 
-    ? allUsersList.value.map(user => ({
-        title: user.nome,
-        value: user.id 
-      }))
-    : [];
+// Dispara quando 'options' (página, itensPorPagina, sortBy) muda
+watch(options, fetchTableData, { deep: true });
 
-  // 3. Retorna a lista combinada, com "Não Atribuído" primeiro
-  return [naoAtribuidoOption, ...userOptions];
+// Dispara quando 'filters' ou 'search' mudam
+watch(
+  [filters, search],
+  () => {
+    // Quando um filtro muda, reseta a paginação e busca novos dados
+    fetchTableData();
+    fetchChartData();
+    checkUnassignedProcesses(); // Re-verifica o alerta também
+  },
+  { deep: true }
+);
+
+// =================================================================
+// 12. LIFECYCLE HOOKS
+// =================================================================
+
+onMounted(() => {
+  // A chamada inicial do 'fetchTableData' é disparada pelo 'watch(options...)'
+  // Mas as outras precisam ser chamadas manualmente.
+  fetchChartData();
+  fetchAllUsers();
+  checkUnassignedProcesses();
 });
-const statusCumpridoOptions = [
-  { title: 'Todos', value: null },
-  { title: 'Cumprido', value: true },
-  { title: 'Não Cumprido', value: false }
-];
-const prazoOptions = [
-  { title: 'Vencido', value: 'vencido' },
-  { title: 'A Vencer', value: 'a_vencer' }
-];
-
-// --- 10. FUNÇÃO DE GERAR PDF (Atualizada) ---
-
-// 'sortBy' não existe mais. Devemos usar 'options.value.sortBy'
-// 'filteredProcesses' não existe mais. Devemos usar 'serverItems.value'
-const downloadPDF = (dataToExport) => {
-  let processesToExport;
-
-  // Decide se exporta os 'selecionados' ou os 'exibidos na tabela'
-  if (dataToExport === selected.value) {
-    processesToExport = [...dataToExport]; // Usa os selecionados
-  } else {
-    // 'dataToExport' será 'serverItems.value' (os itens da página atual)
-    processesToExport = [...serverItems.value];
-  }
-
-  // Ordena os dados
-  const sortState = options.value.sortBy || [];
-  if (sortState.length > 0) {
-    processesToExport = sortProcesses(processesToExport, sortState);
-  }
-  
-  if (processesToExport.length === 0) {
-    alert('Nenhum item para exportar.');
-    return;
-  }
-  
-  // (O resto da sua lógica de PDF, colunas e linhas permanece o mesmo)
-  // ...
-  const doc = new jsPDF('l', 'mm', 'a4');
-  const printDate = new Date().toLocaleDateString('pt-BR');
-  const processCount = processesToExport.length;
-  // ... (Lógica de filtros) ...
-  let filtersText = '...'; // (Sua lógica de filtros aqui) ...
-
-  doc.setFontSize(18);
-  doc.text('Relatório de Processos', 14, 22);
-  // ... (Resto da geração de PDF) ...
-
-  const columns = [
-    { header: 'Nº Processo', dataKey: 'numero_processo' },
-    { header: 'Atribuído a', dataKey: 'user' },
-    { header: 'Classe', dataKey: 'classe_principal' },
-    { header: 'Assunto', dataKey: 'assunto_principal' },
-    { header: 'Tarjas', dataKey: 'tarjas' },
-    { header: 'Prazo', dataKey: 'prazoRestanteStr' },
-    { header: 'Reiterações', dataKey: 'reiteracoes' },
-    { header: 'Obs', dataKey: 'observacoes' }
-  ];
-
-  const rows = processesToExport.map(proc => ({
-    numero_processo: proc.numero_processo || '',
-    user: proc.User?.nome || 'N.A.',
-    classe_principal: proc.classe_principal || '',
-    assunto_principal: proc.assunto_principal || '',
-    tarjas: proc.tarjas || '',
-    prazoRestanteStr: proc.prazoRestanteStr || 'N/A', // 'prazoRestanteStr' é calculado em 'fetchTableData'
-    reiteracoes: proc.reiteracoes || 0,
-    observacoes: proc.observacoes || ''
-  }));
-
-  autoTable(doc, {
-    columns: columns,
-    body: rows,
-    startY: 55,
-    // ... (Seus estilos de PDF) ...
-  });
-
-  doc.save('processos.pdf');
-};
-
-// Funções de ordenação para o PDF (não mudam)
-const getValue = (obj, path) => {
-  if (path === 'user') return obj.User?.nome;
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
-};
-const sortProcesses = (processList, sortState) => {
-  if (!sortState || sortState.length === 0) return processList;
-  const { key, order } = sortState[0];
-  if (!key) return processList;
-  return [...processList].sort((a, b) => {
-    let valA = getValue(a, key);
-    let valB = getValue(b, key);
-    if (valA == null) return 1;
-    if (valB == null) return -1;
-    if (typeof valA === 'string') {
-      valA = valA.toLowerCase();
-      valB = valB.toLowerCase();
-    }
-    if (valA < valB) return order === 'asc' ? -1 : 1;
-    if (valA > valB) return order === 'asc' ? 1 : -1;
-    return 0;
-  });
-};
-
 
 </script>
+
+
 
 <style scoped>
 .container-estreito {

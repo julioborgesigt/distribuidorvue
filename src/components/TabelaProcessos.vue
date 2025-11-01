@@ -15,6 +15,25 @@
       fixed-header
       height="70vh"
     >
+
+      <template v-slot:no-data>
+        <div class="pa-8 text-center">
+          <v-icon 
+            size="64" 
+            color="grey-lighten-2"
+          >
+            mdi-magnify-remove-outline
+          </v-icon>
+          <div class="text-h6 text-grey-lighten-1 mt-4">
+            Nenhum processo encontrado
+          </div>
+          <p class="text-body-2 text-grey-lighten-1 mt-1">
+            Tente ajustar ou limpar os filtros de pesquisa.
+          </p>
+        </div>
+      </template>
+      
+
       <template v-slot:item.user="{ item }">
         <span v-if="item.User">{{ item.User.nome }}</span>
         <v-chip v-else size="small" variant="tonal">Não Atribuído</v-chip>
@@ -123,15 +142,23 @@ const itemEdicao = ref({ id: null, observacoes: '' });
 // Precisamos habilitar 'sortable' para a ordenação do servidor funcionar.
 // O 'prazoRestanteNum' vai precisar de atenção especial.
 const headers = ref([
-  { title: 'Nº Processo', key: 'numero_processo', width: '17%' },
-  { title: 'Atribuído a', key: 'user', width: '10%' },
-  { title: 'Classe', key: 'classe_principal', width: '10%' },
-  { title: 'Assunto', key: 'assunto_principal', width: '10%' },
-  { title: 'Tarjas', key: 'tarjas', width: '10%' },
-  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '12%' }, // <-- Isso vai quebrar
-  { title: 'Reit.', key: 'reiteracoes', width: '5%', align: 'center' },
-  { title: 'Obs', key: 'observacoes',  width: '19%', sortable: false },
-  { title: 'Cumprir', key: 'acaoCumprido', width: '7%', align: 'center', sortable: false },
+  { title: 'Nº Processo', key: 'numero_processo', width: '25%' }, // Ajustado
+  { title: 'Atribuído a', key: 'user', width: '25%' }, // Ajustado
+  
+  // --- Colunas Ocultas em Telas Pequenas ---
+  { title: 'Classe', key: 'classe_principal', width: '12%', class: 'd-none d-md-table-cell' },
+  { title: 'Assunto', key: 'assunto_principal', width: '10%', class: 'd-none d-md-table-cell' },
+  { title: 'Tarjas', key: 'tarjas', width: '10%', class: 'd-none d-md-table-cell' },
+  // ---
+  
+  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '25%' }, // Ajustado
+  
+  // --- Colunas Ocultas em Telas Pequenas ---
+  { title: 'Reit.', key: 'reiteracoes', width: '5%', align: 'center', class: 'd-none d-md-table-cell' },
+  { title: 'Obs', key: 'observacoes',  width: '17%', sortable: false, class: 'd-none d-md-table-cell' },
+  // ---
+  
+  { title: 'Cumprir', key: 'acaoCumprido', width: '15%', align: 'center', sortable: false }, // Ajustado
 ]);
 
 // --- 5. FUNÇÕES AUXILIARES (Sem alteração) ---
