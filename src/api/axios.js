@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://distribuidorback.onrender.com';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://distribuidor.domcloud.dev';
 // 1. Cria uma instância do Axios
 
 const apiClient = axios.create({
