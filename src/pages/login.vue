@@ -4,7 +4,13 @@ meta:
 </route>
 
 <template>
-  <v-sheet width="400" class="mx-auto pa-6" border rounded>
+  <!-- 
+    CORREÇÃO: 
+    Trocado 'width="400"' por 'max-width="400"' e 'width="100%"'.
+    Agora o formulário ocupará 100% da largura em ecrãs pequenos,
+    mas limitará a 400px em ecrãs maiores.
+  -->
+  <v-sheet max-width="400" width="100%" class="mx-auto pa-6" border rounded>
     <h2 class="mb-4">Painel de Admin</h2>
     
     <v-alert v-if="error" type="error" class="mb-4" variant="tonal">
