@@ -83,7 +83,7 @@ export default defineConfig({
     proxy: {
       // 2. ADICIONAMOS O PROXY
       '/api': {
-        target: 'http://localhost:3000/api', // Aponta para o seu backend
+        target: 'https://distribuidorback.onrender.com', // Aponta para o seu backend
         changeOrigin: true,
         secure: false
       }
