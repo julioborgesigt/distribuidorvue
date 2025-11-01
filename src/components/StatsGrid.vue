@@ -4,23 +4,31 @@
       Nenhum dado para exibir com os filtros atuais.
     </div>
 
-    <v-row v-else dense justify="center" class="mb-4">
+    <v-row v-else dense justify="center" class="mb-4 mt-0">
       <v-btn-toggle
         v-model="currentView"
         color="primary"
         variant="outlined"
-        density="compact"
         mandatory
+        class="d-flex flex-column flex-sm-row mb-6"
       >
-        <v-btn value="users">Pendentes por Usuário</v-btn>
-        <v-btn value="details">Pendentes por Prazo/Assunto</v-btn>
+        <v-btn 
+          value="users" 
+          class="w-100 w-sm-auto mb-2 mb-sm-0" >
+          Pendentes por Usuário
+        </v-btn>
+        <v-btn 
+          value="details" 
+          class="w-100 w-sm-auto" >
+          Por Prazo/Assunto
+        </v-btn>
       </v-btn-toggle>
     </v-row>
 
     <div v-if="stats.total > 0 && currentView === 'users'">
       <v-row dense>
         
-        <v-col cols="6" sm="4" md="2">
+        <v-col cols="4" sm="2" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
             :model-value="100"
@@ -34,7 +42,7 @@
           </v-card>
         </v-col>
 
-        <v-col v-for="user in paginatedUsers" :key="user.nome" cols="6" sm="4" md="2">
+        <v-col v-for="user in paginatedUsers" :key="user.nome" cols="4" sm="2" md="2">
           <v-card variant="text" class="text-center">
             <v-progress-circular
             :model-value="user.percent"
@@ -136,18 +144,18 @@ const { name: breakpointName } = useDisplay();
 // Define o tamanho do círculo com base no breakpoint
 const circleSize = computed(() => {
   switch (breakpointName.value) {
-    case 'xs': return 70; // Celulares
-    case 'sm': return 85; // Tablets
-    default: return 100;  // Telas médias (md) ou maiores
+    case 'xs': return 60; // Celulares
+    case 'sm': return 75; // Tablets
+    default: return 85;  // Telas médias (md) ou maiores
   }
 });
 
 // Define a espessura do círculo com base no breakpoint
 const circleWidth = computed(() => {
   switch (breakpointName.value) {
-    case 'xs': return 7;
-    case 'sm': return 8;
-    default: return 10;
+    case 'xs': return 6;
+    case 'sm': return 7;
+    default: return 8;
   }
 });
 

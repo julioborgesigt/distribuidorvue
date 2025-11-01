@@ -1,448 +1,401 @@
 <template>
-  <v-container class="container-estreito">
-    
-    <v-alert
-      v-if="unassignedCount > 0 && showUnassignedAlert"
-      type="warning"
-      variant="tonal"
-      closable
-      @click:close="showUnassignedAlert = false"
-      class="mb-6"
-      border="start"
-      prominent
-    >
-      <div class="d-flex justify-space-between align-center flex-wrap ga-2">
-        <div>
-          Atenção: Existem <strong>{{ unassignedCount }}</strong> processo(s) sem atribuição.
+  <!-- 
+    O <v-container class="container-estreito"> foi removido daqui,
+    pois agora ele está no default.vue envolvendo o <router-view>.
+  -->
+
+  <!-- Alert de processos não atribuídos (inalterado) -->
+  <v-alert
+    v-if="unassignedCount > 0 && showUnassignedAlert"
+    type="warning"
+    variant="tonal"
+    closable
+    @click:close="showUnassignedAlert = false"
+    class="mb-6"
+    border="start"
+    prominent
+  >
+    <div class="d-flex justify-space-between align-center flex-wrap ga-2">
+      <div>
+        Atenção: Existem <strong>{{ unassignedCount }}</strong> processo(s) sem atribuição.
+      </div>
+      <v-btn
+        color="warning"
+        variant="flat"
+        @click="filterUnassigned"
+        size="small"
+      >
+        Filtrar Não Atribuídos
+      </v-btn>
+    </div>
+  </v-alert>
+
+  <!-- 
+    NOVO BLOCO: Card apenas para Ações de Admin.
+    O card original foi removido. Este card só aparece para admin_super.
+  -->
+  <v-card class="mb-6 pa-3" v-if="user?.admin_super">
+    <v-row align="center" justify="space-between" class="ga-2">
+      <v-col cols="12" sm="auto">
+        <div class="text-h6">Ações de Administrador</div>
+      </v-col>
+      <v-col cols="12" sm="auto">
+        <div class="d-flex flex-wrap justify-center justify-md-end" style="gap: 10px;">
+          <!-- Botões de Admin que abrem os modais -->
+          <v-btn color="primary" variant="tonal" prepend-icon="mdi-account-plus-outline" @click="abrirModalCadastro">
+            <span class="d-none d-sm-inline">Cadastrar Usuário</span>
+          </v-btn>
+          <v-btn color="orange" variant="tonal" prepend-icon="mdi-lock-reset" @click="abrirModalReset">
+            <span class="d-none d-sm-inline">Resetar Senha</span>
+          </v-btn>
+          <v-btn color="red" variant="tonal" prepend-icon="mdi-account-remove-outline" @click="abrirModalDelete">
+            <span class="d-none d-sm-inline">Apagar Usuário</span>
+          </v-btn>
+          <v-btn color="teal" variant="tonal" prepend-icon="mdi-file-upload-outline" @click="abrirModalUpload">
+            <span class="d-none d-sm-inline">Importar CSV</span>
+          </v-btn>
         </div>
+      </v-col>
+    </v-row>
+  </v-card>
+  <!-- FIM DO NOVO BLOCO -->
+
+  <!-- O CARD ORIGINAL FOI COMPLETAMENTE REMOVIDO -->
+
+  <!-- O resto do seu template do dashboard continua aqui (gráficos, filtros, tabela) -->
+  <v-expansion-panels class="mb-6" :model-value="mdAndUp ? 0 : undefined">
+    
+    <v-expansion-panel :readonly="mdAndUp">
+      
+      <v-expansion-panel-title :hide-actions="mdAndUp">
+        <v-icon start>mdi-chart-bar</v-icon>
+        Gráficos e Estatísticas
+      </v-expansion-panel-title>
+
+      <v-expansion-panel-text>
+        <v-row dense class="pt-0"> <v-col cols="12" lg="6" > 
+            <stats-grid 
+              :stats="statsData" 
+              style="padding-right: 1%;"
+            />
+          </v-col>       
+
+          <v-col 
+            cols="12" 
+            lg="6" 
+            :class="{ 'mt-6 border-s pl-4': mdAndUp }"
+          > 
+            <v-card-subtitle>Cumpridos por Usuário (Últimos 30 dias)</v-card-subtitle>
+            <cumpridos-chart 
+              :chart-data="cumpridosChartData" 
+            />
+          </v-col>
+
+        </v-row> 
+      </v-expansion-panel-text>
+      
+    </v-expansion-panel>
+  </v-expansion-panels>
+  
+  <v-expansion-panels class="mb-6">
+      <v-expansion-panel> <v-expansion-panel-title>
+        <v-icon start>mdi-filter-variant</v-icon>
+        Filtros
+      </v-expansion-panel-title>
+      <v-expansion-panel-text>
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-autocomplete
+              v-model="filters.classe"
+              label="Classe"
+              density="compact"
+              variant="outlined"
+              clearable
+              multiple
+              chips
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-autocomplete
+              v-model="filters.assunto"
+              label="Assunto"
+              density="compact"
+              variant="outlined"
+              clearable
+              multiple
+              chips
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-autocomplete
+              v-model="filters.tarjas"
+              label="Tarjas"
+              density="compact"
+              variant="outlined"
+              clearable
+              multiple
+              chips
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-autocomplete
+              v-model="filters.userId"
+              :items="uniqueUsers"
+              item-title="title"
+              item-value="value"
+              label="Usuário"
+              density="compact"
+              variant="outlined"
+              clearable
+              multiple
+              chips
+              :disabled="!user?.admin_super"
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="filters.cumprido"
+              :items="statusCumpridoOptions"
+              item-title="title"
+              item-value="value"
+              label="Status (Cumprido)"
+              density="compact"
+              variant="outlined"
+              :disabled="!user?.admin_super"
+            ></v-select>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="filters.prazo"
+              :items="prazoOptions"
+              item-title="title"
+              item-value="value"
+              label="Prazo Restante"
+              density="compact"
+              variant="outlined"
+              clearable
+            ></v-select>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-menu
+              v-model="menuInicio"
+              :close-on-content-click="false"
+              location="bottom end"
+              transition="scale-transition"
+            >
+              <template v-slot:activator="{ props }">
+                <v-text-field
+                  v-model="formattedDataInicio"
+                  label="Data Início (Cumprido)"
+                  density="compact"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-calendar"
+                  readonly
+                  clearable
+                  @click:clear="filters.data_inicio = null"
+                  v-bind="props"
+                ></v-text-field>
+              </template>
+              <v-date-picker
+                v-model="filters.data_inicio"
+                @update:model-value="menuInicio = false"
+                locale="pt-BR"
+                hide-header
+                title="Data Início"
+              ></v-date-picker>
+            </v-menu>
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-menu
+              v-model="menuFim"
+              :close-on-content-click="false"
+              location="bottom end"
+              transition="scale-transition"
+            >
+              <template v-slot:activator="{ props }">
+                <v-text-field
+                  v-model="formattedDataFim"
+                  label="Data Fim (Cumprido)"
+                  density="compact"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-calendar"
+                  readonly
+                  clearable
+                  @click:clear="filters.data_fim = null"
+                  v-bind="props"
+                ></v-text-field>
+              </template>
+              <v-date-picker
+                v-model="filters.data_fim"
+                @update:model-value="menuFim = false"
+                locale="pt-BR"
+                hide-header
+                title="Data Fim"
+              ></v-date-picker>
+            </v-menu>
+          </v-col>
+        </v-row>
+      </v-expansion-panel-text>
+    </v-expansion-panel> 
+  </v-expansion-panels>
+  
+
+
+  <v-card>
+    <v-card-title class="d-flex justify-space-between align-center flex-wrap ga-2">
+      <span class="text-h5">Lista de Processos</span>
+      <v-spacer></v-spacer>
+
+      <div class="d-flex ga-2 flex-wrap justify-end">
         <v-btn
-          color="warning"
+          color="primary"
           variant="flat"
-          @click="filterUnassigned"
-          size="small"
+          prepend-icon="mdi-download"
+          @click="downloadPDF(serverItems)" :disabled="serverItems.length === 0" 
         >
-          Filtrar Não Atribuídos
+          <span class="d-none d-md-inline">Baixar Exibidos</span>
+        </v-btn>
+        
+        <v-btn
+          color="blue-grey"
+          variant="flat"
+          prepend-icon="mdi-download-box-outline"
+          @click="downloadPDF(selected)"
+          :disabled="selected.length === 0"
+        >
+          <span class="d-none d-md-inline">Baixar Selecionados</span>
+        </v-btn>
+
+        <v-btn
+          color="secondary"
+          variant="flat"
+          prepend-icon="mdi-account-arrow-right"
+          @click="abrirModalBulkAssign"
+          :disabled="selected.length === 0"
+        >
+          <span class="d-none d-md-inline">Atribuir Seleção</span>
         </v-btn>
       </div>
-    </v-alert>
-    <v-card class="mb-6 pa-3">
-      <v-row align="center" justify="space-between">
-         <v-btn
-              :title="theme.global.current.value.dark ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
-              icon
-              @click="toggleTheme"
-              class="mr-1 ml-4"
-            >
-              <v-icon>
-                {{ theme.global.current.value.dark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}
-              </v-icon>
-            </v-btn>
-        <v-col cols="12" md="auto" class="text-center text-md-left">
-          
-          <div class="text-h6">Bem-vindo, {{ user?.nome }}!</div>
-          <div class="text-body-2">
-            Você está logado como: 
-            <strong>{{ user?.admin_super ? 'Admin Super' : (user?.admin_padrao ? 'Admin Padrão' : 'Usuário') }}</strong>
-          </div>
-        </v-col>
+    </v-card-title>
 
-        <v-col cols="12" md="auto">
-          <div class="d-flex flex-wrap justify-center justify-md-end" style="gap: 10px;">
-            
-            <template v-if="user?.admin_super">
-              <v-btn color="primary" variant="tonal" prepend-icon="mdi-account-plus-outline" @click="abrirModalCadastro">
-                <span class="d-none d-sm-inline">Cadastrar Usuário</span>
-              </v-btn>
-              <v-btn color="orange" variant="tonal" prepend-icon="mdi-lock-reset" @click="abrirModalReset">
-                <span class="d-none d-sm-inline">Resetar Senha</span>
-              </v-btn>
-              <v-btn color="red" variant="tonal" prepend-icon="mdi-account-remove-outline" @click="abrirModalDelete">
-                <span class="d-none d-sm-inline">Apagar Usuário</span>
-              </v-btn>
-              <v-btn color="teal" variant="tonal" prepend-icon="mdi-file-upload-outline" @click="abrirModalUpload">
-                <span class="d-none d-sm-inline">Importar CSV</span>
-              </v-btn>
-              <v-btn @click="handleLogout" prepend-icon="mdi-logout" variant="text">
-                <span class="d-none d-sm-inline">Sair</span>
-              </v-btn>
-
-            </template>
-           
-
-            
-          </div>
-        </v-col>
-      
-      </v-row>
-    </v-card>
-
-    <v-expansion-panels class="mb-6" :model-value="mdAndUp ? 0 : undefined">
-      
-      <v-expansion-panel :readonly="mdAndUp">
-        
-        <v-expansion-panel-title :hide-actions="mdAndUp">
-          <v-icon start>mdi-chart-bar</v-icon>
-          Gráficos e Estatísticas
-        </v-expansion-panel-title>
-
-        <v-expansion-panel-text>
-          <v-row dense class="pt-4"> <v-col cols="12" lg="6" > 
-              <stats-grid 
-                :stats="statsData" 
-                style="padding-right: 1%;"
-              />
-            </v-col>       
-
-            <v-col 
-              cols="12" 
-              lg="6" 
-              :class="{ 'border-s pl-4': mdAndUp }"
-            > 
-              <v-card-subtitle>Cumpridos por Usuário (Últimos 30 dias)</v-card-subtitle>
-              <cumpridos-chart 
-                :chart-data="cumpridosChartData" 
-              />
-            </v-col>
-
-          </v-row> 
-        </v-expansion-panel-text>
-        
-      </v-expansion-panel>
-    </v-expansion-panels>
+    <v-card-text class="pt-2 pb-0">
+      <v-text-field
+        v-model="search"
+        label="Buscar processo..."
+        variant="outlined"
+        density="compact"
+        prepend-inner-icon="mdi-magnify"
+        hide-details
+        ></v-text-field>
+    </v-card-text>
     
-    <v-expansion-panels class="mb-6">
-       <v-expansion-panel> <v-expansion-panel-title>
-          <v-icon start>mdi-filter-variant</v-icon>
-          Filtros
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-row>
-            <v-col cols="12" md="4">
-              <v-autocomplete
-                v-model="filters.classe"
-                label="Classe"
-                density="compact"
-                variant="outlined"
-                clearable
-                multiple
-                chips
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-autocomplete
-                v-model="filters.assunto"
-                label="Assunto"
-                density="compact"
-                variant="outlined"
-                clearable
-                multiple
-                chips
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-autocomplete
-                v-model="filters.tarjas"
-                label="Tarjas"
-                density="compact"
-                variant="outlined"
-                clearable
-                multiple
-                chips
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-autocomplete
-                v-model="filters.userId"
-                :items="uniqueUsers"
-                item-title="title"
-                item-value="value"
-                label="Usuário"
-                density="compact"
-                variant="outlined"
-                clearable
-                multiple
-                chips
-                :disabled="!user?.admin_super"
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-select
-                v-model="filters.cumprido"
-                :items="statusCumpridoOptions"
-                item-title="title"
-                item-value="value"
-                label="Status (Cumprido)"
-                density="compact"
-                variant="outlined"
-                :disabled="!user?.admin_super"
-              ></v-select>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-select
-                v-model="filters.prazo"
-                :items="prazoOptions"
-                item-title="title"
-                item-value="value"
-                label="Prazo Restante"
-                density="compact"
-                variant="outlined"
-                clearable
-              ></v-select>
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-menu
-                v-model="menuInicio"
-                :close-on-content-click="false"
-                location="bottom end"
-                transition="scale-transition"
-              >
-                <template v-slot:activator="{ props }">
-                  <v-text-field
-                    v-model="formattedDataInicio"
-                    label="Data Início (Cumprido)"
-                    density="compact"
-                    variant="outlined"
-                    prepend-inner-icon="mdi-calendar"
-                    readonly
-                    clearable
-                    @click:clear="filters.data_inicio = null"
-                    v-bind="props"
-                  ></v-text-field>
-                </template>
-                <v-date-picker
-                  v-model="filters.data_inicio"
-                  @update:model-value="menuInicio = false"
-                  locale="pt-BR"
-                  hide-header
-                  title="Data Início"
-                ></v-date-picker>
-              </v-menu>
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-menu
-                v-model="menuFim"
-                :close-on-content-click="false"
-                location="bottom end"
-                transition="scale-transition"
-              >
-                <template v-slot:activator="{ props }">
-                  <v-text-field
-                    v-model="formattedDataFim"
-                    label="Data Fim (Cumprido)"
-                    density="compact"
-                    variant="outlined"
-                    prepend-inner-icon="mdi-calendar"
-                    readonly
-                    clearable
-                    @click:clear="filters.data_fim = null"
-                    v-bind="props"
-                  ></v-text-field>
-                </template>
-                <v-date-picker
-                  v-model="filters.data_fim"
-                  @update:model-value="menuFim = false"
-                  locale="pt-BR"
-                  hide-header
-                  title="Data Fim"
-                ></v-date-picker>
-              </v-menu>
-            </v-col>
-          </v-row>
-        </v-expansion-panel-text>
-      </v-expansion-panel> </v-expansion-panels>
-    
-
-
+    <tabela-processos
+      v-model:selected="selected"
+      :items="serverItems"
+      :totalItems="totalItems"
+      :loading="loadingTable"
+      @update:options="options = $event"
+      @salvar-obs="handleSalvarObservacoes"
+      @marcar-cumprido="handleMarcarComoCumprido"
+    />
+  
+  </v-card> 
+  
+  <!-- 
+    Todos os modais (v-dialog) e o snackbar
+    PERMANECEM AQUI, pois são controlados pelos
+    botões de admin e ações desta página.
+  -->
+  <v-dialog v-model="dialogCadastro" max-width="600px" persistent>
     <v-card>
-      <v-card-title class="d-flex justify-space-between align-center flex-wrap ga-2">
-        <span class="text-h5">Lista de Processos</span>
-        <v-spacer></v-spacer>
-
-        <div class="d-flex ga-2 flex-wrap justify-end">
-          <v-btn
-            color="primary"
-            variant="flat"
-            prepend-icon="mdi-download"
-            @click="downloadPDF(serverItems)" :disabled="serverItems.length === 0" 
-          >
-            <span class="d-none d-md-inline">Baixar Exibidos</span>
-          </v-btn>
-          
-          <v-btn
-            color="blue-grey"
-            variant="flat"
-            prepend-icon="mdi-download-box-outline"
-            @click="downloadPDF(selected)"
-            :disabled="selected.length === 0"
-          >
-            <span class="d-none d-md-inline">Baixar Selecionados</span>
-          </v-btn>
-
-          <v-btn
-            color="secondary"
-            variant="flat"
-            prepend-icon="mdi-account-arrow-right"
-            @click="abrirModalBulkAssign"
-            :disabled="selected.length === 0"
-          >
-            <span class="d-none d-md-inline">Atribuir Seleção</span>
-          </v-btn>
-        </div>
-      </v-card-title>
-
-      <v-card-text class="pt-2 pb-0">
-        <v-text-field
-          v-model="search"
-          label="Buscar processo..."
-          variant="outlined"
-          density="compact"
-          prepend-inner-icon="mdi-magnify"
-          hide-details
-          ></v-text-field>
-      </v-card-text>
-      
-      <tabela-processos
-        v-model:selected="selected"
-        :items="serverItems"
-        :totalItems="totalItems"
-        :loading="loadingTable"
-        @update:options="options = $event"
-        @salvar-obs="handleSalvarObservacoes"
-        @marcar-cumprido="handleMarcarComoCumprido"
-      />
-    
-    </v-card> 
-    
-    <v-dialog v-model="dialogCadastro" max-width="600px" persistent>
-      <v-card>
-        <v-form ref="formCadastroRef" @submit.prevent="handleSalvarCadastro">
-          <v-card-title>
-            <span class="text-h5">Cadastrar Novo Usuário</span>
-          </v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="novoUsuario.nome"
-                    label="Nome Completo"
-                    :rules="[requiredRule]"
-                    variant="outlined"
-                    density="compact"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="novoUsuario.matricula"
-                    label="Matrícula"
-                    :rules="[requiredRule]"
-                    variant="outlined"
-                    density="compact"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="novoUsuario.senha"
-                    label="Senha Provisória"
-                    :rules="[requiredRule, senhaRule]"
-                    type="password"
-                    variant="outlined"
-                    density="compact"
-                    hint="Mínimo 8 caracteres"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12">
-                  <label class="text-body-2">Tipo de Acesso</label>
-                  <v-radio-group v-model="novoUsuario.tipoCadastro" inline>
-                    <v-radio
-                      v-for="opt in tipoCadastroOptions"
-                      :key="opt.value"
-                      :label="opt.title"
-                      :value="opt.value"
-                    ></v-radio>
-                  </v-radio-group>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="fecharModalCadastro">Cancelar</v-btn>
-            <v-btn
-              color="primary"
-              :loading="loadingCadastro"
-              type="submit"
-            >
-              Salvar
-            </v-btn>
-          </v-card-actions>
-        </v-form>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="dialogReset" max-width="500px" persistent>
-      <v-card>
-        <v-form ref="formResetRef" @submit.prevent="handleResetarSenha">
-          <v-card-title>
-            <span class="text-h5">Resetar Senha de Usuário</span>
-          </v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12">
-                  <v-autocomplete
-                    v-model="matriculaParaReset"
-                    :items="allUsersOptions"
-                    item-title="title"
-                    item-value="value"
-                    label="Selecionar Usuário"
-                    :rules="[requiredRule]"
-                    variant="outlined"
-                    density="compact"
-                    placeholder="Digite o nome ou matrícula..."
-                  ></v-autocomplete>
-                  <div class="text-caption pa-1">
-                    A senha do usuário selecionado será redefinida para "12345678".
-                  </div>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="fecharModalReset">Cancelar</v-btn>
-            <v-btn
-              color="orange"
-              :loading="loadingReset"
-              type="submit"
-            >
-              Resetar Senha
-            </v-btn>
-          </v-card-actions>
-        </v-form>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="dialogUpload" max-width="500px" persistent>
-      <v-card>
+      <v-form ref="formCadastroRef" @submit.prevent="handleSalvarCadastro">
         <v-card-title>
-          <span class="text-h5">Importar e Atualizar CSV</span>
+          <span class="text-h5">Cadastrar Novo Usuário</span>
         </v-card-title>
         <v-card-text>
           <v-container>
             <v-row>
               <v-col cols="12">
-                <v-file-input
-                  label="Selecionar arquivo CSV"
-                  accept=".csv, text/csv"
+                <v-text-field
+                  v-model="novoUsuario.nome"
+                  label="Nome Completo"
+                  :rules="[requiredRule]"
                   variant="outlined"
                   density="compact"
-                  @change="onFileChange"
-                  :error-messages="uploadError"
-                ></v-file-input>
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="novoUsuario.matricula"
+                  label="Matrícula"
+                  :rules="[requiredRule]"
+                  variant="outlined"
+                  density="compact"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="novoUsuario.senha"
+                  label="Senha Provisória"
+                  :rules="[requiredRule, senhaRule]"
+                  type="password"
+                  variant="outlined"
+                  density="compact"
+                  hint="Mínimo 8 caracteres"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12">
+                <label class="text-body-2">Tipo de Acesso</label>
+                <v-radio-group v-model="novoUsuario.tipoCadastro" inline>
+                  <v-radio
+                    v-for="opt in tipoCadastroOptions"
+                    :key="opt.value"
+                    :label="opt.title"
+                    :value="opt.value"
+                  ></v-radio>
+                </v-radio-group>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="fecharModalCadastro">Cancelar</v-btn>
+          <v-btn
+            color="primary"
+            :loading="loadingCadastro"
+            type="submit"
+          >
+            Salvar
+          </v-btn>
+        </v-card-actions>
+      </v-form>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="dialogReset" max-width="500px" persistent>
+    <v-card>
+      <v-form ref="formResetRef" @submit.prevent="handleResetarSenha">
+        <v-card-title>
+          <span class="text-h5">Resetar Senha de Usuário</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-row>
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="matriculaParaReset"
+                  :items="allUsersOptions"
+                  item-title="title"
+                  item-value="value"
+                  label="Selecionar Usuário"
+                  :rules="[requiredRule]"
+                  variant="outlined"
+                  density="compact"
+                  placeholder="Digite o nome ou matrícula..."
+                ></v-autocomplete>
                 <div class="text-caption pa-1">
-                  O arquivo será processado pelo backend.
-                  Processos existentes serão atualizados se a data de intimação for mais recente.
+                  A senha do usuário selecionado será redefinida para "12345678".
                 </div>
               </v-col>
             </v-row>
@@ -450,134 +403,174 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="fecharModalUpload">Cancelar</v-btn>
+          <v-btn variant="text" @click="fecharModalReset">Cancelar</v-btn>
           <v-btn
-            color="teal"
-            :loading="loadingUpload"
-            @click="handleUploadCSV"
-            :disabled="!csvFile"
+            color="orange"
+            :loading="loadingReset"
+            type="submit"
           >
-            Enviar e Processar
+            Resetar Senha
           </v-btn>
         </v-card-actions>
-      </v-card>
-    </v-dialog>
+      </v-form>
+    </v-card>
+  </v-dialog>
 
-
-    <v-dialog v-model="dialogDelete" max-width="500px" persistent>
-      <v-card>
-        <v-form ref="formDeleteRef" @submit.prevent="handleDeleteUser">
-          <v-card-title>
-            <span class="text-h5">Apagar Usuário</span>
-          </v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-alert
-                type="error"
-                variant="tonal"
-                class="mb-4"
-                border="start"
-                prominent
-              >
-                <strong>Atenção:</strong> Esta ação é permanente e não pode ser desfeita. Todos os processos atribuídos a este usuário ficarão "Não Atribuídos".
-              </v-alert>
-
-              <v-row>
-                <v-col cols="12">
-                  <v-autocomplete
-                    v-model="matriculaParaDelete"
-                    item-title="title"
-                    :items="allUsersOptions"
-                    item-value="value"
-                    label="Selecionar Usuário para Apagar"
-                    :rules="[requiredRule]"
-                    variant="outlined"
-                    density="compact"
-                    placeholder="Digite o nome ou matrícula..."
-                  ></v-autocomplete>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="fecharModalDelete">Cancelar</v-btn>
-            <v-btn
-              color="red"
-              :loading="loadingDelete"
-              type="submit"
-            >
-              Apagar Usuário
-            </v-btn>
-          </v-card-actions>
-        </v-form>
-      </v-card>
-    </v-dialog>
-
-
-
-
-    <v-dialog v-model="dialogBulkAssign" max-width="500px" persistent>
-      <v-card>
-        <v-form ref="formBulkAssignRef" @submit.prevent="handleBulkAssign">
-          <v-card-title>
-            <span class="text-h5">Atribuir Processos Selecionados</span>
-          </v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12">
-                  <div class="text-subtitle-1 mb-2">
-                    <strong>{{ selected.length }}</strong> processo(s) selecionado(s).
-                  </div>
-                  <v-autocomplete
-                    v-model="matriculaParaAtribuir"
-                    item-title="title"
-                    :items="allUsersOptions"
-                    item-value="value"
-                    label="Atribuir ao usuário:"
-                    :rules="[requiredRule]"
-                    variant="outlined"
-                    density="compact"
-                    placeholder="Selecione o usuário de destino..."
-                  ></v-autocomplete>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="fecharModalBulkAssign">Cancelar</v-btn>
-            <v-btn
-              color="secondary"
-              :loading="loadingBulkAssign"
-              type="submit"
-            >
-              Atribuir
-            </v-btn>
-          </v-card-actions>
-        </v-form>
-      </v-card>
-    </v-dialog>
-
-
-
-    <v-snackbar
-      v-model="snackbar"
-      :color="snackbarColor"
-      :timeout="3000"
-      location="top right"
-      multi-line
-    >
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <v-btn icon @click="snackbar = false">
-          <v-icon>mdi-close</v-icon>
+  <v-dialog v-model="dialogUpload" max-width="500px" persistent>
+    <v-card>
+      <v-card-title>
+        <span class="text-h5">Importar e Atualizar CSV</span>
+      </v-card-title>
+      <v-card-text>
+        <v-container>
+          <v-row>
+            <v-col cols="12">
+              <v-file-input
+                label="Selecionar arquivo CSV"
+                accept=".csv, text/csv"
+                variant="outlined"
+                density="compact"
+                @change="onFileChange"
+                :error-messages="uploadError"
+              ></v-file-input>
+              <div class="text-caption pa-1">
+                O arquivo será processado pelo backend.
+                Processos existentes serão atualizados se a data de intimação for mais recente.
+              </div>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="fecharModalUpload">Cancelar</v-btn>
+        <v-btn
+          color="teal"
+          :loading="loadingUpload"
+          @click="handleUploadCSV"
+          :disabled="!csvFile"
+        >
+          Enviar e Processar
         </v-btn>
-      </template>
-    </v-snackbar>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+
+  <v-dialog v-model="dialogDelete" max-width="500px" persistent>
+    <v-card>
+      <v-form ref="formDeleteRef" @submit.prevent="handleDeleteUser">
+        <v-card-title>
+          <span class="text-h5">Apagar Usuário</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-alert
+              type="error"
+              variant="tonal"
+              class="mb-4"
+              border="start"
+              prominent
+            >
+              <strong>Atenção:</strong> Esta ação é permanente e não pode ser desfeita. Todos os processos atribuídos a este usuário ficarão "Não Atribuídos".
+            </v-alert>
+
+            <v-row>
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="matriculaParaDelete"
+                  item-title="title"
+                  :items="allUsersOptions"
+                  item-value="value"
+                  label="Selecionar Usuário para Apagar"
+                  :rules="[requiredRule]"
+                  variant="outlined"
+                  density="compact"
+                  placeholder="Digite o nome ou matrícula..."
+                ></v-autocomplete>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="fecharModalDelete">Cancelar</v-btn>
+          <v-btn
+            color="red"
+            :loading="loadingDelete"
+            type="submit"
+          >
+            Apagar Usuário
+          </v-btn>
+        </v-card-actions>
+      </v-form>
+    </v-card>
+  </v-dialog>
+
+
+
+
+  <v-dialog v-model="dialogBulkAssign" max-width="500px" persistent>
+    <v-card>
+      <v-form ref="formBulkAssignRef" @submit.prevent="handleBulkAssign">
+        <v-card-title>
+          <span class="text-h5">Atribuir Processos Selecionados</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-row>
+              <v-col cols="12">
+                <div class="text-subtitle-1 mb-2">
+                  <strong>{{ selected.length }}</strong> processo(s) selecionado(s).
+                </div>
+                <v-autocomplete
+                  v-model="matriculaParaAtribuir"
+                  item-title="title"
+                  :items="allUsersOptions"
+                  item-value="value"
+                  label="Atribuir ao usuário:"
+                  :rules="[requiredRule]"
+                  variant="outlined"
+                  density="compact"
+                  placeholder="Selecione o usuário de destino..."
+                ></v-autocomplete>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="fecharModalBulkAssign">Cancelar</v-btn>
+          <v-btn
+            color="secondary"
+            :loading="loadingBulkAssign"
+            type="submit"
+          >
+            Atribuir
+          </v-btn>
+        </v-card-actions>
+      </v-form>
+    </v-card>
+  </v-dialog>
+
+
+
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    :timeout="3000"
+    location="top right"
+    multi-line
+  >
+    {{ snackbarText }}
+    <template v-slot:actions>
+      <v-btn icon @click="snackbar = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </template>
+  </v-snackbar>
   
-  </v-container>
+  <!-- O </v-container> final foi removido -->
 </template>
 
 <script setup>
@@ -596,19 +589,18 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useDisplay } from 'vuetify';
 const { mdAndUp } = useDisplay(); // mdAndUp será 'true' se a tela for >= 960px
-import { useTheme } from 'vuetify'; 
+// import { useTheme } from 'vuetify'; // REMOVIDO - Movido para default.vue
 
-const theme = useTheme();
-const toggleTheme = () => {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark';
-};
+
+// const theme = useTheme(); // REMOVIDO
+// const toggleTheme = () => { ... }; // REMOVIDO
 
 
 // =================================================================
 // 2. ESTADO PRINCIPAL (AUTH & FILTROS)
 // =================================================================
 const authStore = useAuthStore();
-const { user } = storeToRefs(authStore);
+const { user } = storeToRefs(authStore); // MANTIDO - Ainda é necessário para o v-if dos botões de admin
 
 const search = ref('');
 const filters = ref({
@@ -640,6 +632,7 @@ const allUsersList = ref([]); // Lista de todos os usuários para modais/filtros
 // =================================================================
 // 4. ESTADO DOS MODAIS E SNACKBAR
 // =================================================================
+// ... (Todo o estado dos modais e snackbar é MANTIDO aqui) ...
 const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
@@ -685,7 +678,7 @@ const senhaRule = v => (v && v.length >= 8) || 'Senha deve ter no mínimo 8 cara
 // =================================================================
 // 6. PROPRIEDADES COMPUTADAS (COMPUTED)
 // =================================================================
-
+// ... (Todas as computed properties são MANTIDAS aqui) ...
 // Opções para os selects de filtro/modais
 const tipoCadastroOptions = ref([
   { title: 'Admin Padrão', value: 'admin_padrao' },
@@ -787,7 +780,7 @@ const formattedDataFim = computed(() => {
 // =================================================================
 // 7. FUNÇÕES HELPERS (Cálculo de Prazo, Construtores de Query)
 // =================================================================
-
+// ... (Todas as funções helper são MANTIDAS aqui) ...
 // --- Helpers de Cálculo de Prazo (Usados pela Tabela) ---
 const parsePrazoDias = (prazoString) => {
   if (!prazoString) return 0;
@@ -859,7 +852,7 @@ const buildQueryParams = () => {
 // =================================================================
 // 8. FUNÇÕES API (Chamadas ao Backend)
 // =================================================================
-
+// ... (Todas as funções de API são MANTIDAS aqui) ...
 // Busca dados paginados para a TABELA
 const fetchTableData = async () => {
   loadingTable.value = true;
@@ -945,6 +938,7 @@ const reloadAllData = async () => {
 // =================================================================
 
 // --- Handlers da Tabela ---
+// (MANTIDOS)
 const handleSalvarObservacoes = async (itemEditado) => {
   try {
     const { id, observacoes } = itemEditado;
@@ -957,6 +951,9 @@ const handleSalvarObservacoes = async (itemEditado) => {
 
 const handleMarcarComoCumprido = async (item) => {
   const acao = item.cumprido ? 'desfazer-cumprir' : 'cumprir';
+  // Usei um modal customizado ou snackbar de confirmação em vez de confirm()
+  // Por simplicidade, vou manter o confirm() que você tinha,
+  // mas o ideal seria trocar por um v-dialog de confirmação.
   const confirmar = confirm(`Deseja realmente ${item.cumprido ? 'DESMARCAR' : 'MARCAR'} o processo ${item.numero_processo} como cumprido?`);
   if (!confirmar) return;
 
@@ -969,16 +966,16 @@ const handleMarcarComoCumprido = async (item) => {
 };
 
 // --- Handlers da UI ---
+// (MANTIDOS)
 const filterUnassigned = () => {
   filters.value.userId = ['NA'];
   showUnassignedAlert.value = false;
 };
 
-const handleLogout = () => {
-  authStore.logout();
-};
+// const handleLogout = () => { ... }; // REMOVIDO - Movido para default.vue
 
 // --- Handlers de PDF ---
+// (MANTIDOS)
 const downloadPDF = (dataToExport) => {
   let processesToExport;
   if (dataToExport === selected.value) {
@@ -993,7 +990,10 @@ const downloadPDF = (dataToExport) => {
   }
   
   if (processesToExport.length === 0) {
-    alert('Nenhum item para exportar.');
+    // Substituir alert por snackbar
+    snackbarText.value = 'Nenhum item para exportar.';
+    snackbarColor.value = 'info';
+    snackbar.value = true;
     return;
   }
   
@@ -1050,7 +1050,7 @@ const sortProcesses = (processList, sortState) => {
 // =================================================================
 // 10. FUNÇÕES DOS MODAIS (Admin)
 // =================================================================
-
+// ... (TODAS as funções de abrir/fechar/handle dos modais são MANTIDAS aqui) ...
 // --- Modal Cadastrar ---
 const abrirModalCadastro = () => {
   novoUsuario.value = { matricula: '', nome: '', senha: '', tipoCadastro: 'usuario_padrao' };
@@ -1220,7 +1220,7 @@ const handleBulkAssign = async () => {
 // =================================================================
 // 11. OBSERVADORES (WATCHERS)
 // =================================================================
-
+// ... (Todos os watchers são MANTIDOS aqui) ...
 // Dispara quando 'options' (página, itensPorPagina, sortBy) muda
 watch(options, fetchTableData, { deep: true });
 
@@ -1239,7 +1239,7 @@ watch(
 // =================================================================
 // 12. LIFECYCLE HOOKS
 // =================================================================
-
+// (MANTIDO)
 onMounted(() => {
   // A chamada inicial do 'fetchTableData' é disparada pelo 'watch(options...)'
   // Mas as outras precisam ser chamadas manualmente.
@@ -1250,10 +1250,7 @@ onMounted(() => {
 
 </script>
 
-
-
-<style scoped>
-.container-estreito {
-  max-width: 1400px; 
-}
-</style>
+<!-- 
+  A tag <style> foi removida pois o .container-estreito
+  foi movido para o default.vue
+-->

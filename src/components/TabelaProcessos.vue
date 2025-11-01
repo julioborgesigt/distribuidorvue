@@ -52,17 +52,19 @@
       </template>
 
       <template v-slot:item.acaoCumprido="{ item }">
+        <!-- ATUALIZADO: Estado CUMPRIDO (trocado 'icon' por 'variant="text"') -->
         <v-tooltip location="top" v-if="item.cumprido">
           <template v-slot:activator="{ props: tooltipProps }">
             <v-btn
-              icon
+              variant="text"
               color="success"
               v-bind="tooltipProps"
               @click="emitirEventoMarcarCumprido(item)"
               title="Desmarcar processo"
-              size="small"
+              size="x-small" 
             >
-              <v-icon>mdi-check-circle</v-icon>
+              <!-- Ícone de checkbox marcada -->
+              <v-icon>mdi-checkbox-marked</v-icon>
             </v-btn>
             </template>
           <span>
@@ -70,15 +72,17 @@
           </span>
         </v-tooltip>
         
+        <!-- ATUALIZADO: Estado NÃO CUMPRIDO (trocado 'icon' por 'variant="text"') -->
         <v-btn
           v-else
-          icon
+          variant="text"
           color="grey-lighten-1"
           @click="emitirEventoMarcarCumprido(item)"
           title="Marcar como cumprido"
-          size="small" 
+          size="x-small" 
         >
-          <v-icon>mdi-check-circle</v-icon>
+          <!-- Ícone de checkbox vazia -->
+          <v-icon>mdi-checkbox-blank-outline</v-icon>
         </v-btn>
       </template>
 
@@ -143,14 +147,14 @@ const itemEdicao = ref({ id: null, observacoes: '' });
 // O 'prazoRestanteNum' vai precisar de atenção especial.
 const headers = ref([
   { title: 'Nº Processo', key: 'numero_processo', width: '220px' }, // Exemplo de largura fixa
-  { title: 'Atribuído a', key: 'user', width: '120px' },
+  { title: 'Atribuído', key: 'user', width: '120px' },
   { title: 'Classe', key: 'classe_principal', width: '140px' },
   { title: 'Assunto', key: 'assunto_principal', width: '200px' },
   { title: 'Tarjas', key: 'tarjas', width: '150px' },
-  { title: 'Prazo Restante', key: 'prazoRestanteNum', width: '140px' },
+  { title: 'Prazo', key: 'prazoRestanteNum', width: '140px' },
   { title: 'Reit.', key: 'reiteracoes', width: '60px', align: 'center' },
-  { title: 'Obs', key: 'observacoes',  width: '210px', sortable: false },
-  { title: 'Cumprir', key: 'acaoCumprido', width: '80px', align: 'center', sortable: false },
+  { title: 'Obs', key: 'observacoes',  width: '250px', sortable: false },
+  { title: 'Cumprir', key: 'acaoCumprido', width: '70px', align: 'center', sortable: false },
 ]);
 
 // --- 5. FUNÇÕES AUXILIARES (Sem alteração) ---
@@ -186,12 +190,32 @@ const emitirEventoMarcarCumprido = (item) => {
   align-items: center;
   width: 100%;
 }
-:deep(th:not(:last-child)) {
+
+/* --- CORREÇÃO PARA LINHAS VERTICAIS ---
+  O seu código original usava 'rgba(255, 255, 255, 0.12)' (branco), 
+  que só funciona no modo escuro.
+  Agora, ele aplica a cor correta para cada tema.
+*/
+
+/* ATUALIZADO: Removemos o :not(:last-child) para aplicar a borda em TODAS as colunas */
+/* Estilo para MODO ESCURO (linha branca) */
+:deep(.v-theme--dark th) {
   border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
-:deep(td:not(:last-child)) {
+:deep(.v-theme--dark td) {
   border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
+
+/* Estilo para MODO CLARO (linha cinza/preta) */
+:deep(.v-theme--light th) {
+  border-right: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+:deep(.v-theme--light td) {
+  border-right: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+/* --- FIM DA CORREÇÃO --- */
+
+
 :deep(table) {
   table-layout: fixed;
 }
@@ -201,3 +225,4 @@ const emitirEventoMarcarCumprido = (item) => {
   word-break: break-all;
 }
 </style>
+
