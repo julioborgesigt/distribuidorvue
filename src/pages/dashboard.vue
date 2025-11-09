@@ -998,7 +998,86 @@ const downloadPDF = (dataToExport) => {
   }
   
   const doc = new jsPDF('l', 'mm', 'a4');
-  // ... (Sua lógica de PDF) ...
+
+  // --- CABEÇALHO DO PDF ---
+  // Título
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('Relatório de Processos', 15, 15);
+
+  // Data de impressão
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  const dataAtual = format(new Date(), 'dd/MM/yyyy HH:mm');
+  doc.text(`Data de Impressão: ${dataAtual}`, 15, 22);
+
+  // Quantidade de processos
+  doc.text(`Total de Processos: ${processesToExport.length}`, 15, 28);
+
+  // Filtros aplicados
+  let yPosition = 34;
+  const filtrosAtivos = [];
+
+  if (search.value) {
+    filtrosAtivos.push(`Busca: "${search.value}"`);
+  }
+  if (filters.value.classe && filters.value.classe.length > 0) {
+    filtrosAtivos.push(`Classe: ${filters.value.classe.join(', ')}`);
+  }
+  if (filters.value.assunto && filters.value.assunto.length > 0) {
+    filtrosAtivos.push(`Assunto: ${filters.value.assunto.join(', ')}`);
+  }
+  if (filters.value.tarjas && filters.value.tarjas.length > 0) {
+    filtrosAtivos.push(`Tarjas: ${filters.value.tarjas.join(', ')}`);
+  }
+  if (filters.value.userId && filters.value.userId.length > 0) {
+    const userNames = filters.value.userId.map(id => {
+      if (id === 'NA') return 'Não Atribuído';
+      const usuario = allUsersList.value.find(u => u.id === id);
+      return usuario ? usuario.nome : id;
+    });
+    filtrosAtivos.push(`Usuário: ${userNames.join(', ')}`);
+  }
+  if (filters.value.cumprido !== null && filters.value.cumprido !== false) {
+    filtrosAtivos.push(`Status: ${filters.value.cumprido ? 'Cumprido' : 'Não Cumprido'}`);
+  }
+  if (filters.value.prazo) {
+    const prazoLabel = filters.value.prazo === 'vencido' ? 'Vencido' : 'A Vencer';
+    filtrosAtivos.push(`Prazo: ${prazoLabel}`);
+  }
+  if (filters.value.data_inicio) {
+    filtrosAtivos.push(`Data Início: ${format(filters.value.data_inicio, 'dd/MM/yyyy')}`);
+  }
+  if (filters.value.data_fim) {
+    filtrosAtivos.push(`Data Fim: ${format(filters.value.data_fim, 'dd/MM/yyyy')}`);
+  }
+
+  if (filtrosAtivos.length > 0) {
+    doc.setFont(undefined, 'bold');
+    doc.text('Filtros Aplicados:', 15, yPosition);
+    doc.setFont(undefined, 'normal');
+    yPosition += 6;
+
+    filtrosAtivos.forEach((filtro, index) => {
+      // Se o texto for muito longo, quebra em múltiplas linhas
+      const maxWidth = 267; // Largura da página A4 landscape menos margens
+      const linhas = doc.splitTextToSize(filtro, maxWidth);
+      linhas.forEach(linha => {
+        doc.text(`  • ${linha}`, 15, yPosition);
+        yPosition += 5;
+      });
+    });
+  } else {
+    doc.text('Filtros: Nenhum filtro aplicado', 15, yPosition);
+    yPosition += 6;
+  }
+
+  // Linha separadora
+  doc.setLineWidth(0.5);
+  doc.line(15, yPosition + 2, 282, yPosition + 2);
+
+  // --- FIM DO CABEÇALHO ---
+
   const columns = [
     { header: 'Nº Processo', dataKey: 'numero_processo' },
     { header: 'Atribuído a', dataKey: 'user' },
@@ -1019,7 +1098,16 @@ const downloadPDF = (dataToExport) => {
     reiteracoes: proc.reiteracoes || 0,
     observacoes: proc.observacoes || ''
   }));
-  autoTable(doc, { columns, body: rows, startY: 55 });
+
+  // Inicia a tabela após o cabeçalho (yPosition + margem)
+  autoTable(doc, {
+    columns,
+    body: rows,
+    startY: yPosition + 8,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [66, 139, 202], fontStyle: 'bold' }
+  });
+
   doc.save('processos.pdf');
 };
 
