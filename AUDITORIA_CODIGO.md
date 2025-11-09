@@ -8,13 +8,16 @@
 
 ## Sumário Executivo
 
-Esta auditoria identificou **25 problemas** categorizados em:
+Esta auditoria identificou **26 problemas** categorizados em:
 - **5 Vulnerabilidades de Segurança** (Críticas e Altas)
-- **3 Bugs** (Médios)
-- **10 Dependências Desatualizadas** (Baixas)
+- **4 Bugs** (Médios) - ✅ 1 corrigido
+- **10 Dependências Desatualizadas** (Baixas) - ✅ 1 removida
 - **12 Melhorias Recomendadas** (Diversas prioridades)
 
 **Status de Vulnerabilidades NPM:** ✅ 0 vulnerabilidades encontradas (npm audit)
+
+### ✅ Correções Aplicadas
+- **Bug de Preload de Fontes** - Removido `unplugin-fonts` e migrado para `@fontsource/roboto` (mais estável)
 
 ---
 
@@ -134,6 +137,47 @@ server: {
 ---
 
 ## 🟡 2. Bugs Identificados
+
+### ✅ 2.0 Avisos de Preload de Fontes no Console (CORRIGIDO)
+**Severidade:** MÉDIA
+**Arquivos:** `vite.config.mjs`, `src/main.js`, `package.json`
+**Descrição:**
+O plugin `unplugin-fonts` estava gerando tags `<link rel="preload">` com valores de `type` não suportados, causando avisos no console:
+
+```
+<link rel=preload> has an unsupported `type` value
+The resource was preloaded using link preload but not used within a few seconds...
+```
+
+Isso ocorria porque:
+1. O plugin tentava fazer preload de fontes do Google Fonts
+2. As fontes Material Design Icons (@mdi/font) eram carregadas separadamente
+3. O arquivo `unfonts.css` gerado automaticamente conflitava com as fontes instaladas via npm
+
+**Solução Aplicada:**
+✅ Removido o plugin `unplugin-fonts` do `vite.config.mjs`
+✅ Removida a dependência `unplugin-fonts` do `package.json`
+✅ Migrado para importação direta das fontes `@fontsource/roboto` no `main.js`
+✅ Removido o import de `unfonts.css`
+
+**Código Após Correção:**
+```javascript
+// src/main.js
+import '@fontsource/roboto/100.css'
+import '@fontsource/roboto/300.css'
+import '@fontsource/roboto/400.css'
+import '@fontsource/roboto/500.css'
+import '@fontsource/roboto/700.css'
+import '@fontsource/roboto/900.css'
+```
+
+**Benefícios:**
+- ✅ Elimina avisos de preload no console
+- ✅ Melhor controle sobre quais pesos de fonte são carregados
+- ✅ Fontes servidas localmente (melhor performance offline)
+- ✅ Reduz dependências desnecessárias
+
+---
 
 ### 2.1 Falta de Feedback ao Usuário em Erro de "Marcar Cumprido"
 **Severidade:** MÉDIA
