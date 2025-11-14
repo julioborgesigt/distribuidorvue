@@ -632,6 +632,11 @@ const unassignedCount = ref(0);
 const showUnassignedAlert = ref(true);
 const allUsersList = ref([]); // Lista de todos os usuários para modais/filtros
 
+// Listas de todas as opções de filtros (cumulativas)
+const allClassesList = ref([]); // Lista de todas as classes disponíveis
+const allAssuntosList = ref([]); // Lista de todos os assuntos disponíveis
+const allTarjasList = ref([]); // Lista de todas as tarjas disponíveis
+
 // =================================================================
 // 4. ESTADO DOS MODAIS E SNACKBAR
 // =================================================================
@@ -719,39 +724,19 @@ const uniqueUsers = computed(() => {
   return [naoAtribuidoOption, ...userOptions];
 });
 
-// Gera a lista de CLASSES únicas dos processos carregados
+// Gera a lista de CLASSES (cumulativa - todas as opções disponíveis)
 const uniqueClasses = computed(() => {
-  const classesSet = new Set();
-  serverItems.value.forEach(proc => {
-    if (proc.classe_principal) {
-      classesSet.add(proc.classe_principal);
-    }
-  });
-  return Array.from(classesSet).sort();
+  return allClassesList.value;
 });
 
-// Gera a lista de ASSUNTOS únicos dos processos carregados
+// Gera a lista de ASSUNTOS (cumulativa - todas as opções disponíveis)
 const uniqueAssuntos = computed(() => {
-  const assuntosSet = new Set();
-  serverItems.value.forEach(proc => {
-    if (proc.assunto_principal) {
-      assuntosSet.add(proc.assunto_principal);
-    }
-  });
-  return Array.from(assuntosSet).sort();
+  return allAssuntosList.value;
 });
 
-// Gera a lista de TARJAS únicas dos processos carregados
+// Gera a lista de TARJAS (cumulativa - todas as opções disponíveis)
 const uniqueTarjas = computed(() => {
-  const tarjasSet = new Set();
-  serverItems.value.forEach(proc => {
-    if (proc.tarjas) {
-      // Tarjas podem vir separadas por vírgula, vamos separar
-      const tarjasArray = proc.tarjas.split(',').map(t => t.trim()).filter(t => t);
-      tarjasArray.forEach(t => tarjasSet.add(t));
-    }
-  });
-  return Array.from(tarjasSet).sort();
+  return allTarjasList.value;
 });
 
 // Computed para o StatsGrid (baseado na resposta da API)
@@ -961,6 +946,52 @@ const fetchAllUsers = async () => {
     snackbarText.value = 'Erro ao carregar lista de usuários.';
     snackbarColor.value = 'error';
     snackbar.value = true;
+  }
+};
+
+// Busca todas as opções disponíveis para os filtros (classe, assunto, tarjas)
+const fetchFilterOptions = async () => {
+  try {
+    // Busca uma grande quantidade de processos SEM filtros para obter todas as opções
+    const params = new URLSearchParams();
+    params.append('page', 1);
+    params.append('itemsPerPage', 10000); // Número alto para pegar todos os valores únicos
+    params.append('cumprido', false); // Apenas não cumpridos para options relevantes
+
+    const response = await apiClient.get('/admin/processes', { params });
+    const processos = response.data.items || [];
+
+    // Extrai classes únicas
+    const classesSet = new Set();
+    processos.forEach(proc => {
+      if (proc.classe_principal) {
+        classesSet.add(proc.classe_principal);
+      }
+    });
+    allClassesList.value = Array.from(classesSet).sort();
+
+    // Extrai assuntos únicos
+    const assuntosSet = new Set();
+    processos.forEach(proc => {
+      if (proc.assunto_principal) {
+        assuntosSet.add(proc.assunto_principal);
+      }
+    });
+    allAssuntosList.value = Array.from(assuntosSet).sort();
+
+    // Extrai tarjas únicas (separando por vírgula se necessário)
+    const tarjasSet = new Set();
+    processos.forEach(proc => {
+      if (proc.tarjas) {
+        const tarjasArray = proc.tarjas.split(',').map(t => t.trim()).filter(t => t);
+        tarjasArray.forEach(t => tarjasSet.add(t));
+      }
+    });
+    allTarjasList.value = Array.from(tarjasSet).sort();
+
+  } catch (error) {
+    console.error("Erro ao buscar opções de filtros:", error);
+    // Não mostra erro ao usuário pois não é crítico
   }
 };
 
@@ -1371,6 +1402,7 @@ onMounted(() => {
   // Mas as outras precisam ser chamadas manualmente.
   fetchChartData();
   fetchAllUsers();
+  fetchFilterOptions(); // Busca opções cumulativas para os filtros
   checkUnassignedProcesses();
 });
 
