@@ -107,6 +107,7 @@
           <v-col cols="12" md="4">
             <v-autocomplete
               v-model="filters.classe"
+              :items="uniqueClasses"
               label="Classe"
               density="compact"
               variant="outlined"
@@ -118,6 +119,7 @@
           <v-col cols="12" md="4">
             <v-autocomplete
               v-model="filters.assunto"
+              :items="uniqueAssuntos"
               label="Assunto"
               density="compact"
               variant="outlined"
@@ -129,6 +131,7 @@
           <v-col cols="12" md="4">
             <v-autocomplete
               v-model="filters.tarjas"
+              :items="uniqueTarjas"
               label="Tarjas"
               density="compact"
               variant="outlined"
@@ -714,6 +717,41 @@ const uniqueUsers = computed(() => {
       }))
     : [];
   return [naoAtribuidoOption, ...userOptions];
+});
+
+// Gera a lista de CLASSES únicas dos processos carregados
+const uniqueClasses = computed(() => {
+  const classesSet = new Set();
+  serverItems.value.forEach(proc => {
+    if (proc.classe_principal) {
+      classesSet.add(proc.classe_principal);
+    }
+  });
+  return Array.from(classesSet).sort();
+});
+
+// Gera a lista de ASSUNTOS únicos dos processos carregados
+const uniqueAssuntos = computed(() => {
+  const assuntosSet = new Set();
+  serverItems.value.forEach(proc => {
+    if (proc.assunto_principal) {
+      assuntosSet.add(proc.assunto_principal);
+    }
+  });
+  return Array.from(assuntosSet).sort();
+});
+
+// Gera a lista de TARJAS únicas dos processos carregados
+const uniqueTarjas = computed(() => {
+  const tarjasSet = new Set();
+  serverItems.value.forEach(proc => {
+    if (proc.tarjas) {
+      // Tarjas podem vir separadas por vírgula, vamos separar
+      const tarjasArray = proc.tarjas.split(',').map(t => t.trim()).filter(t => t);
+      tarjasArray.forEach(t => tarjasSet.add(t));
+    }
+  });
+  return Array.from(tarjasSet).sort();
 });
 
 // Computed para o StatsGrid (baseado na resposta da API)
